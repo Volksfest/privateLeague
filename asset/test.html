@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<body>
+<style>
+    #container {display:flex; flex-direction:column; height:100%; width:100%;}
+    #output {width:100%}
+    #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
+    #match {margin-top: 40px;}
+    .week {display:flex; flex-direction:row; justify-content:space-around;}
+    .week div {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; border: 2px solid #000;margin:5px;}
+    .week div div {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
+</style>
+    <div id="container">
+    <div>
+        <input type="text"/>
+        <button>send</button>
+    </div>
+    <h2>WebSocket Test 3</h2>
+    <div id="output">
+        <div id="player"></div>
+
+        <div id="match"></div>
+    </div>
+
+</div>
+
+<script>
+    var button = document.querySelector("button"),
+        output = document.querySelector("#output"),
+        player = document.querySelector("#player"),
+        match = document.querySelector("#match"),
+        textfield = document.querySelector("input"),
+
+        wsUri = "ws://localhost:8080/",
+        websocket = new WebSocket(wsUri);
+
+    textfield.addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+            // Cancel the default action, if needed
+            event.preventDefault();
+            send()
+        }
+    });
+    button.addEventListener("click", send);
+
+    websocket.onmessage = function (e) {
+        var obj = JSON.parse(e.data);
+        defTable(obj)
+        //console.debug(obj);
+        //table = (e.data.indexOf("|") != -1);
+        //writeToScreen("<span>" + e.data.replace(/\n/g,"</span></p><p><span>").replace(/\|/g,"</span><span>") + "</span>",table);
+    };
+
+    websocket.onerror = function (e) {
+        writeToScreen("<span class=error>ERROR:</span> " + e.data);
+    };
+
+    function defTable(league) {
+        console.log(league)
+        league.players.forEach(element =>
+            player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
+
+        var gpw = league.matches.length / league.weeks_count;
+
+        league.matches.forEach(function(element,index) {
+            var last = match.lastChild;
+            if (last == null) {
+                match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
+                last = match.lastChild;
+            } else if (last.childElementCount == gpw) {
+                match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
+                last = match.lastChild;
+            }
+            last.insertAdjacentHTML("beforeend", "<div><div>" + league.players[element.players[0]].name + "</div><div>" + league.players[element.players[1]].name + "</div></div>");
+
+        });
+        //output.insertAdjacentHTML("afterbegin", "<div" + (table?" class=table":"")+"><p>" + message + "</p></div>");
+    }
+
+    function doSend(message) {
+        //writeToScreen(message);
+        websocket.send(message);
+    }
+
+    function writeToScreen(message, table = false) {
+        output.insertAdjacentHTML("afterbegin", "<div" + (table?" class=table":"")+"><p>" + message + "</p></div>");
+    }
+
+    function send() {
+        var text = textfield.value;
+
+        text && doSend(text);
+        textfield.value = "";
+        textfield.focus();
+    }
+</script>
+</body>
+</html>
