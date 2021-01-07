@@ -7,8 +7,15 @@
     #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
     #match {margin-top: 40px;}
     .week {display:flex; flex-direction:row; justify-content:space-around;}
-    .week div {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; border: 2px solid #000;margin:5px;}
+    .week div {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;}
     .week div div {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
+
+    .winner {color : green}
+    .loser {color : red}
+
+    .played {border: 2px solid #000;}
+    .unplayed {border: 2px dashed #aaa;}
+    .ongoing {border: 2px solid #000; background-color: #cc0}
 </style>
     <div id="container">
     <div>
@@ -58,6 +65,10 @@
 
     function defTable(league) {
         console.log(league)
+
+        player.innerHTML = '';
+        match.innerHTML = '';
+
         league.players.forEach(element =>
             player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
 
@@ -72,7 +83,35 @@
                 match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
                 last = match.lastChild;
             }
-            last.insertAdjacentHTML("beforeend", "<div><div>" + league.players[element.players[0]].name + "</div><div>" + league.players[element.players[1]].name + "</div></div>");
+
+            class_name = "unplayed";
+            first_player_class = "";
+            second_player_class = "";
+            if (element.games.length > 0) {
+                first_player = 0;
+                second_player = 0;
+                element.games.forEach(game => {
+                    if(game.first_player_won) {
+                        first_player++;
+                    } else {
+                        second_player++;
+                    }
+                });
+
+
+                if (first_player >= 2 && first_player > second_player) {
+                    class_name = "played";
+                    first_player_class = " class='winner'";
+                    second_player_class = " class='loser'";
+                } else if (second_player >= 2 &&  second_player > first_player) {
+                    class_name = "played";
+                    first_player_class = " class='loser'";
+                    second_player_class = " class='winner'";
+                } else {
+                    class_name = "ongoing";
+                }
+            }
+            last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'><div"+first_player_class+">" + league.players[element.players[0]].name + "</div><div"+second_player_class+">" + league.players[element.players[1]].name + "</div></div>");
 
         });
         //output.insertAdjacentHTML("afterbegin", "<div" + (table?" class=table":"")+"><p>" + message + "</p></div>");

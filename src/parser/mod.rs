@@ -1,7 +1,7 @@
 pub mod command;
 
 use command::Command;
-use crate::parser::command::GameArgs;
+use crate::parser::command::{GameArgs, LeagueCommand, ControlCommand};
 
 pub fn parse_input_for_game(literals : &Vec<&str>) -> Result<Command,String> {
     if literals.len() < 5 {
@@ -35,28 +35,26 @@ pub fn parse_input_for_game(literals : &Vec<&str>) -> Result<Command,String> {
 
     }
 
-    Ok(Command::AddGame(GameArgs{
+    Ok(Command::Modify(LeagueCommand::AddGame(GameArgs{
         player1: (player1, c1.to_ascii_lowercase()),
         player2: (player2, c2.to_ascii_lowercase()),
         first_player_win: c1.is_uppercase(),
         duration_min: 2,
         duration_sec: 37
-    }))
+    })))
 }
 
 pub fn parse_input(guess : &mut String) -> Result<Command, String> {
     guess.retain(|c| c != '\n');
     let literals= guess.split(" ").collect::<Vec<&str>>();
-    println!("{}", literals.len());
+
     if literals.len() < 1 {
         return Err(String::from("Need at least a command..."));
     }
-    println!("{}", literals[0]);
-
 
     match literals[0] {
         "Game" => parse_input_for_game(&literals),
-        "Save" => Ok(Command::Serialize),
+        "Save" => Ok(Command::Control(ControlCommand::Serialize)),
         _ => Err(String::from("Command not known"))
     }
 
