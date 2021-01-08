@@ -1,7 +1,7 @@
 pub mod command;
 
 use command::Command;
-use crate::parser::command::{GameArgs, LeagueCommand, ControlCommand};
+use crate::parser::command::{GameArgs, LeagueCommand};
 
 pub fn parse_input_for_game(literals : &Vec<&str>) -> Result<Command,String> {
     if literals.len() < 5 {
@@ -54,7 +54,8 @@ pub fn parse_input(guess : &mut String) -> Result<Command, String> {
 
     match literals[0] {
         "Game" => parse_input_for_game(&literals),
-        "Save" => Ok(Command::Control(ControlCommand::Serialize)),
+        "Save" => Ok(Command::Serialize),
+        "Quit" => Ok(Command::Quit),
         _ => Err(String::from("Command not known"))
     }
 

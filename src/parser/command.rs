@@ -17,12 +17,9 @@ pub enum LeagueCommand {
     // TODO Do Debug
 }
 
-pub enum ControlCommand {
-    Serialize,
-    NewClient(Sender<String>),
-}
-
 pub enum Command{
     Modify(LeagueCommand),
-    Control(ControlCommand),
+    Serialize,
+    NewClient(Sender<String>),
+    Quit,
 }

@@ -4,7 +4,7 @@ mod serialization;
 mod websocket;
 
 use crate::league::league::League;
-use crate::parser::command::{Command, LeagueCommand, ControlCommand};
+use crate::parser::command::{Command, LeagueCommand};
 use crate::parser::command::GameArgs;
 
 use clap::Clap;
@@ -93,24 +93,18 @@ fn main() {
                     }
                 }
             },
-            Command::Control(ctrl) => match ctrl {
-                ControlCommand::Serialize => {
-                    std::fs::write(&opts.config,serde_json::to_string_pretty(&league).unwrap());
-                }
-                ControlCommand::NewClient(client) => {
-                    client.send(serde_json::to_string(&league).unwrap());
-                    client_channels.push(client);
-                }
-            }
-        }
+            Command::Serialize => {
+                std::fs::write(&opts.config, serde_json::to_string_pretty(&league).unwrap());
+            },
+            Command::NewClient(client) => {
+                client.send(serde_json::to_string(&league).unwrap());
+                client_channels.push(client);
+            },
+            Command::Quit => break
+        };
     }
 
     /*
-     TODO Command Object
-
-     TODO Deserialization
-
-
      TODO WebService
      TODO Session-Liga Bind
 
@@ -118,7 +112,6 @@ fn main() {
 
      TODO Telegram-Bot
      TODO Registration
-
      TODO Date with remembering
      */
 }

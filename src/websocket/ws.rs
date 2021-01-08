@@ -12,13 +12,12 @@ use websocket::result::WebSocketError;
 use crate::league::league::League;
 use crate::Command;
 use std::sync::mpsc::{Sender, channel};
-use crate::parser::command::ControlCommand;
 
 // TODO too lazy now -> summerize all client into one thread (actually then only one channel to the clients is needed!)
 fn handle_client(mut client : websocket::sync::Client<std::net::TcpStream>, sender : Sender<Command> ) {
 
         let (tx, rx) = channel();
-        sender.send(Command::Control(ControlCommand::NewClient(tx)));
+        sender.send(Command::NewClient(tx));
 
         client.set_nonblocking(true);
 
