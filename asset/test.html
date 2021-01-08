@@ -31,6 +31,7 @@
 
         .winner {color : green}
         .loser {color : red}
+        span.winner, span.loser {10px;}
 
         .played {border: 2px solid #000; position:relative; }
         .unplayed {border: 2px dashed #aaa; }
@@ -121,9 +122,7 @@
                     if (class_name != "unplayed") {
                         var p1_races = "";
                         var p2_races = "";
-                        for (i = 0; i < 3; i++) {
-                            if ( i < element.games.length) {
-                                game = element.games[i]
+                        element.games.forEach(game => {
                                 var first = "loser";
                                 var second = "loser";
                                 if (game.first_player_won) {
@@ -134,11 +133,7 @@
 
                                 p1_races = p1_races + "<span class='"+first+"'>" + game.races[0].charAt(0)+ "</span>";
                                 p2_races = p2_races + "<span class='"+second+"'>" + game.races[1].charAt(0)+ "</span>";
-                            } else {
-                                p1_races = p1_races + "<span>&nbsp;</span>";
-                                p2_races = p2_races + "<span>&nbsp;</span>";
-                            }
-                        };
+                        });
                         info = "<div class='info'> <div class='score'><div>"+ p1_races +"</div><div>"+ p2_races +"</div> </div></div>\n";
                     }
 
