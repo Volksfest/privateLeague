@@ -1,138 +1,155 @@
 <!doctype html>
 <html>
-<body>
-<style>
-    #container {display:flex; flex-direction:column; height:100%; width:100%;}
-    #output {width:100%}
-    #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
-    #match {margin-top: 40px;}
-    .week {display:flex; flex-direction:row; justify-content:space-around;}
-    .week div {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;}
-    .week div div {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
+    <head>
+        <meta charset="UTF-8">
+        <title>StartCraft 2 Private League</title>
 
-    .winner {color : green}
-    .loser {color : red}
+        <style>
+        #container {display:flex; flex-direction:column; height:100%; width:100%;}
+        #output {width:100%}
+        #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
+        #match {margin-top: 40px;}
 
-    .played {border: 2px solid #000;}
-    .unplayed {border: 2px dashed #aaa;}
-    .ongoing {border: 2px solid #000; background-color: #cc0}
-</style>
-    <div id="container">
-    <div>
-        <input type="text"/>
-        <button>send</button>
-    </div>
-    <h2>WebSocket Test 3</h2>
-    <div id="output">
-        <div id="player"></div>
+        .week {display:flex; flex-direction:row; justify-content:space-around;}
+        .played, .unplayed, .ongoing {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;}
+        .normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
 
-        <div id="match"></div>
-    </div>
+        .score { display:flex; flex-direction:column; justify-content:space-around; height:100%;}
+        .score div { display:flex; flex-direction:row; justify-content:space-around;}
 
-</div>
-
-<script>
-    var button = document.querySelector("button"),
-        output = document.querySelector("#output"),
-        player = document.querySelector("#player"),
-        match = document.querySelector("#match"),
-        textfield = document.querySelector("input"),
-
-        wsUri = "ws://localhost:8080/",
-        websocket = new WebSocket(wsUri);
-
-    textfield.addEventListener("keyup", function(event) {
-        // Number 13 is the "Enter" key on the keyboard
-        if (event.keyCode === 13) {
-            // Cancel the default action, if needed
-            event.preventDefault();
-            send()
+        .info {
+            display: none;
+            position: absolute;
+            width: 100px;
+            height: 80px;
+            left: 100px;
+            border: 2px solid #000;
+            border-left: 0px;
+            background-color: #fff;
+            z-index: 1;
         }
-    });
-    button.addEventListener("click", send);
 
-    websocket.onmessage = function (e) {
-        var obj = JSON.parse(e.data);
-        defTable(obj)
-        //console.debug(obj);
-        //table = (e.data.indexOf("|") != -1);
-        //writeToScreen("<span>" + e.data.replace(/\n/g,"</span></p><p><span>").replace(/\|/g,"</span><span>") + "</span>",table);
-    };
+        .winner {color : green}
+        .loser {color : red}
 
-    websocket.onerror = function (e) {
-        writeToScreen("<span class=error>ERROR:</span> " + e.data);
-    };
+        .played {border: 2px solid #000; position:relative; }
+        .unplayed {border: 2px dashed #aaa; }
+        .ongoing {border: 2px solid #000; background-color: #cc0; position:relative;}
 
-    function defTable(league) {
-        console.log(league)
+        .played:hover, .ongoing:hover {
+            border-right: 0px;
+            padding-right: 2px;
+        }
 
-        player.innerHTML = '';
-        match.innerHTML = '';
+        .played:hover .info, .ongoing:hover .info {
+            display:block;
+        }
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <h2>StartCraft 2 Private League - Season 2</h2>
 
-        league.players.forEach(element =>
-            player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
+            <div id="output">
+                <div id="player"></div>
 
-        var gpw = league.matches.length / league.weeks_count;
+                <div id="match"></div>
+            </div>
+        </div>
 
-        league.matches.forEach(function(element,index) {
-            var last = match.lastChild;
-            if (last == null) {
-                match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
-                last = match.lastChild;
-            } else if (last.childElementCount == gpw) {
-                match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
-                last = match.lastChild;
-            }
+        <script>
+            var player = document.querySelector("#player");
+            var match = document.querySelector("#match");
 
-            class_name = "unplayed";
-            first_player_class = "";
-            second_player_class = "";
-            if (element.games.length > 0) {
-                first_player = 0;
-                second_player = 0;
-                element.games.forEach(game => {
-                    if(game.first_player_won) {
-                        first_player++;
-                    } else {
-                        second_player++;
+            var wsUri = "ws://localhost:8080/"; //TODO make generic with bind address
+            var websocket = new WebSocket(wsUri);
+
+            websocket.onmessage = function(e) {
+                var league = JSON.parse(e.data);
+
+                console.log(league)
+
+                player.innerHTML = '';
+                match.innerHTML = '';
+
+                var gpw = Math.floor(league.players.length / 2);
+
+                league.players.forEach(element =>
+                    player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
+
+
+                league.matches.forEach(function(element,index) {
+                    var last = match.lastChild;
+
+                    if (last == null) {
+                        match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
+                        last = match.lastChild;
+                    } else if (last.childElementCount == gpw) {
+                        match.insertAdjacentHTML("beforeend", "<div class='week'></div>");
+                        last = match.lastChild;
                     }
+
+                    class_name = "unplayed";
+                    first_player_class = "normal_player";
+                    second_player_class = "normal_player";
+                    if (element.games.length > 0) {
+                        first_player = 0;
+                        second_player = 0;
+                        element.games.forEach(game => {
+                            if(game.first_player_won) {
+                                first_player++;
+                            } else {
+                                second_player++;
+                            }
+                        });
+
+
+                        if (first_player >= 2 && first_player > second_player) {
+                            class_name = "played";
+                            first_player_class = "winner";
+                            second_player_class = "loser";
+                        } else if (second_player >= 2 &&  second_player > first_player) {
+                            class_name = "played";
+                            first_player_class = "loser";
+                            second_player_class = "winner";
+                        } else {
+                            class_name = "ongoing";
+                        }
+                    }
+
+                    var info = "";
+                    if (class_name != "unplayed") {
+                        var p1_races = "";
+                        var p2_races = "";
+                        for (i = 0; i < 3; i++) {
+                            if ( i < element.games.length) {
+                                game = element.games[i]
+                                var first = "loser";
+                                var second = "loser";
+                                if (game.first_player_won) {
+                                    first = "winner";
+                                } else {
+                                    second = "winner";
+                                }
+
+                                p1_races = p1_races + "<span class='"+first+"'>" + game.races[0].charAt(0)+ "</span>";
+                                p2_races = p2_races + "<span class='"+second+"'>" + game.races[1].charAt(0)+ "</span>";
+                            } else {
+                                p1_races = p1_races + "<span>&nbsp;</span>";
+                                p2_races = p2_races + "<span>&nbsp;</span>";
+                            }
+                        };
+                        info = "<div class='info'> <div class='score'><div>"+ p1_races +"</div><div>"+ p2_races +"</div> </div></div>\n";
+                    }
+
+                    last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'>" + info + "<div class='"+first_player_class+"'>" + league.players[element.players[0]].name + "</div><div class='"+second_player_class+"'>" + league.players[element.players[1]].name + "</div></div>");
+
                 });
+            };
 
-
-                if (first_player >= 2 && first_player > second_player) {
-                    class_name = "played";
-                    first_player_class = " class='winner'";
-                    second_player_class = " class='loser'";
-                } else if (second_player >= 2 &&  second_player > first_player) {
-                    class_name = "played";
-                    first_player_class = " class='loser'";
-                    second_player_class = " class='winner'";
-                } else {
-                    class_name = "ongoing";
-                }
-            }
-            last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'><div"+first_player_class+">" + league.players[element.players[0]].name + "</div><div"+second_player_class+">" + league.players[element.players[1]].name + "</div></div>");
-
-        });
-        //output.insertAdjacentHTML("afterbegin", "<div" + (table?" class=table":"")+"><p>" + message + "</p></div>");
-    }
-
-    function doSend(message) {
-        //writeToScreen(message);
-        websocket.send(message);
-    }
-
-    function writeToScreen(message, table = false) {
-        output.insertAdjacentHTML("afterbegin", "<div" + (table?" class=table":"")+"><p>" + message + "</p></div>");
-    }
-
-    function send() {
-        var text = textfield.value;
-
-        text && doSend(text);
-        textfield.value = "";
-        textfield.focus();
-    }
-</script>
-</body>
+//          websocket.onerror = function (e) {
+//              writeToScreen("<span class=error>ERROR:</span> " + e.data);
+//          };
+        </script>
+    </body>
 </html>
