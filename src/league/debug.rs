@@ -4,7 +4,7 @@ use super::league::League;
 
 impl std::fmt::Display for League {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let gpw = self.matches.len() / self.weeks_count;
+        let gpw = League::mathes_per_week(self.players.len());
 
         let mut week: usize = 0;
 
@@ -65,7 +65,7 @@ impl std::fmt::Display for League {
             }
             write!(f, "+\n")?;
 
-            if week == self.weeks_count {
+            if week == League::weeks_count(self.players.len()) {
                 break;
             }
 

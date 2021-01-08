@@ -13,8 +13,6 @@ pub struct League {
     pub(super) players: Vec<Player>,
 
     pub(super) matches: Vec<Match>,
-
-    pub(super) weeks_count: usize,
 }
 
 impl League {
@@ -24,7 +22,6 @@ impl League {
         let mut l = League {
             players: names.iter().map(|x| Player { name: x.clone() }).collect::<Vec<Player>>(),
             matches: Vec::new(),
-            weeks_count: 0,
         };
 
         // Create matches
@@ -68,22 +65,29 @@ impl League {
                 None => ()
             }
         }
-        l.weeks_count = weeks_num;
-
-
         l
+    }
+
+    pub fn weeks_count(player_count : usize) -> usize {
+        match player_count % 2 {
+            0 => player_count - 1,
+            1 => player_count,
+            _ => unreachable!()
+        }
+    }
+
+    pub fn match_count(player_count : usize) -> usize {
+        player_count * (player_count - 1) / 2
+    }
+
+    pub fn mathes_per_week(player_count : usize) -> usize {
+        League::match_count(player_count) / League::weeks_count(player_count)
     }
 
     pub fn is_consistent(&self) -> bool {
         let player_count = self.players.len();
 
-        let weeks_num = player_count - 1 + player_count % 2;
-
-        if self.weeks_count != weeks_num {
-            return false;
-        }
-
-        if self.matches.len() != weeks_num * (weeks_num - 1) / 2 {
+        if League::match_count(player_count) != self.matches.len() {
             return false;
         }
 
