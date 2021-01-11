@@ -12,6 +12,7 @@ use websocket::result::WebSocketError;
 use crate::league::league::League;
 use crate::Command;
 use std::sync::mpsc::{Sender, channel};
+use crate::parser::command::{GameArgs, LeagueCommand};
 
 // TODO too lazy now -> summerize all client into one thread (actually then only one channel to the clients is needed!)
 fn handle_client(mut client : websocket::sync::Client<std::net::TcpStream>, sender : Sender<Command> ) {
@@ -31,7 +32,13 @@ fn handle_client(mut client : websocket::sync::Client<std::net::TcpStream>, send
 
                         // getting (text) message
                         websocket::message::OwnedMessage::Text(t) => {
-                            println!("{}", t);
+                            let game_message : Result<GameArgs,serde_json::Error>  = serde_json::from_str(t.as_str());
+                            match game_message {
+                                Ok(args) => {
+                                    sender.send(Command::Modify(LeagueCommand::AddGame(args)));
+                                },
+                                Err(e) => ()
+                            }
                             //let str = serde_json::to_string_pretty(league).unwrap();
                             //client.send_message(&websocket::Message::text(str)).unwrap();
                         },

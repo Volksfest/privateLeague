@@ -29,6 +29,9 @@
             background-color: #fff;
             z-index: 1;
         }
+        .ongoing .info {
+            background-color: #cc0;
+        }
 
         .winner {color : green}
         .loser {color : red}
@@ -221,7 +224,17 @@
             }
 
             function addGame() {
-                console.log("Hi");
+                json = JSON.stringify({
+                    "first_player_win": document.querySelector('input[name="first_player_won"]:checked').value == "true",
+                    "player1": [document.getElementById("first_player_label").innerText,
+                                document.getElementById("first_player_race_input").value.charAt(0).toLowerCase()],
+                    "player2": [document.getElementById("second_player_label").innerText,
+                                document.getElementById("second_player_race_input").value.charAt(0).toLowerCase()],
+                    "duration_min" : 2,
+                    "duration_sec" : 37,
+                });
+                websocket.send(json);
+                hidePopup();
             }
 
         </script>
