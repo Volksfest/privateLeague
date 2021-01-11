@@ -22,6 +22,10 @@ struct Opts{
     host:String,
 }
 
+fn save(file : &String, league : &League) {
+    std::fs::write(file, serde_json::to_string_pretty(league).unwrap());
+}
+
 fn keyboard_input() {
 
 }
@@ -89,15 +93,15 @@ fn main() {
         match msg {
             Command::Modify(args) => match args {
                 LeagueCommand::AddGame(game) => {
-                    println!("Got a game");
                     league.add_game(&game);
+                    save(&opts.config, &league);
                     for channel in &client_channels {
                         channel.send(serde_json::to_string(&league).unwrap());
                     }
                 }
             },
             Command::Serialize => {
-                std::fs::write(&opts.config, serde_json::to_string_pretty(&league).unwrap());
+                save(&opts.config, &league);
             },
             Command::NewClient(client) => {
                 client.send(serde_json::to_string(&league).unwrap());
