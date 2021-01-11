@@ -18,6 +18,8 @@ struct Opts{
     config: String,
     #[clap(long)]
     players: Option<Vec<String>>,
+    #[clap(long, default_value = "127.0.0.1:8080")]
+    host:String,
 }
 
 fn keyboard_input() {
@@ -57,7 +59,8 @@ fn main() {
     let (sender, receiver) = std::sync::mpsc::channel();
 
     let client_send_channel = sender.clone();
-    std::thread::spawn(move || websocket::ws::wait_for_clients(client_send_channel));
+    let host = opts.host.clone();
+    std::thread::spawn(move || websocket::ws::wait_for_clients(client_send_channel, host));
 
     let mut client_channels : Vec<Sender<String>> = Vec::new();
 

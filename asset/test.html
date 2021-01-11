@@ -122,7 +122,7 @@
             var match = document.querySelector("#match");
             var popup = document.querySelector("#popup");
 
-            var wsUri = "ws://localhost:8080/"; //TODO make generic with bind address
+            var wsUri = "ws://[[ADDR]]/";
             var websocket = new WebSocket(wsUri);
 
             websocket.onmessage = function(e) {

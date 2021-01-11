@@ -68,8 +68,8 @@ fn handle_client(mut client : websocket::sync::Client<std::net::TcpStream>, send
         client.shutdown().unwrap();
 }
 
-pub fn wait_for_clients(sender : Sender<Command>) {
-    let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
+pub fn wait_for_clients(sender : Sender<Command>, host : String) {
+    let listener = TcpListener::bind(host.clone()).unwrap();
 
     let filename = "asset/test.html";
 
@@ -77,7 +77,8 @@ pub fn wait_for_clients(sender : Sender<Command>) {
         let stream = stream.unwrap();
 
         let content = fs::read_to_string(filename)
-            .expect("Could not read file");
+            .expect("Could not read file")
+            .replace("[[ADDR]]", host.as_str());
 
         // Check if WS Upgrade
         let mut client: websocket::sync::Client<std::net::TcpStream> = match stream.into_ws() {
