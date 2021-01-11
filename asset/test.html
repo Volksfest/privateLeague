@@ -10,8 +10,9 @@
         #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
         #match {margin-top: 40px;}
 
+
         .week {display:flex; flex-direction:row; justify-content:space-around;}
-        .played, .unplayed, .ongoing {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;}
+        .played, .unplayed, .ongoing {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;  position: relative;}
         .normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
 
         .score { display:flex; flex-direction:column; justify-content:space-around; height:100%;}
@@ -33,9 +34,9 @@
         .loser {color : red}
         span.winner, span.loser {10px;}
 
-        .played {border: 2px solid #000; position:relative; }
+        .played {border: 2px solid #000; }
         .unplayed {border: 2px dashed #aaa; }
-        .ongoing {border: 2px solid #000; background-color: #cc0; position:relative;}
+        .ongoing {border: 2px solid #000; background-color: #cc0;}
 
         .played:hover, .ongoing:hover {
             border-right: 0px;
@@ -44,6 +45,37 @@
 
         .played:hover .info, .ongoing:hover .info {
             display:block;
+        }
+
+        #popup {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            width: 300px;
+
+            border-radius:5px;
+
+            z-index: 3;
+        }
+
+        .row {display:flex; flex-direction:row; justify-content:flex-end;}
+
+        #popup label {
+            flex-grow:50;
+        }
+
+        #popup div {
+            margin:15px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .active {
+            display: block;
         }
         </style>
     </head>
@@ -58,9 +90,37 @@
             </div>
         </div>
 
+        <div id="popup" class="hidden">
+            <datalist id="race">
+                <option value="Terran"></option>
+                <option value="Zerg"></option>
+                <option value="Protoss"></option>
+            </datalist>
+
+            <div class="row">
+                <label id="first_player_label" for="first_player_race_input"></label>
+                <input id="first_player_race_input" name="first_player_race" list="race" onfocus="this.value=''"/>
+                <input type="radio" id="first_player_win_radio" name="first_player_won" value="true" checked />
+            </div>
+            <div class="row">
+                <label id="second_player_label" for="second_player_race_input"></label>
+                <input id="second_player_race_input" name="second_player_race" list="race" onfocus="this.value=''"/>
+                <input type="radio" id="second_player_win_radio" name="first_player_won" value="false" />
+            </div>
+            <div class="row">
+                <label id="duration_label" for="duration_text">Spieldauer</label>
+                <input type="text" id="duration_text" name="duration" value="0:00" />
+            </div>
+            <div class="row">
+                <input type="button" id="submit" name="game_submit" value="Add" style="margin-right:5px" onclick="addGame()"/>
+                <input type="button" id="cancel" name="game_cancel" value="Cancel" onclick="hidePopup()"/>
+            </div>
+        </div>
+
         <script>
             var player = document.querySelector("#player");
             var match = document.querySelector("#match");
+            var popup = document.querySelector("#popup");
 
             var wsUri = "ws://localhost:8080/"; //TODO make generic with bind address
             var websocket = new WebSocket(wsUri);
@@ -137,14 +197,33 @@
                         info = "<div class='info'> <div class='score'><div>"+ p1_races +"</div><div>"+ p2_races +"</div> </div></div>\n";
                     }
 
-                    last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'>" + info + "<div class='"+first_player_class+"'>" + league.players[element.players[0]].name + "</div><div class='"+second_player_class+"'>" + league.players[element.players[1]].name + "</div></div>");
-
+                    last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'><div class='"+first_player_class+"'>" + league.players[element.players[0]].name + "</div><div class='"+second_player_class+"'>" + league.players[element.players[1]].name + "</div>"+info+"</div>");
+                    var last_match = last.lastChild;
+                    last_match.addEventListener("click", openPopup, true);
                 });
             };
 
-//          websocket.onerror = function (e) {
-//              writeToScreen("<span class=error>ERROR:</span> " + e.data);
-//          };
+            function openPopup(e) {
+                if (popup.className == "active") {
+                    return;
+                }
+
+                this.appendChild(popup);
+                // TODO check size and make correct positioning
+                popup.className="active";
+                var inner = this.innerText.split("\n");
+                document.getElementById("first_player_label").innerHTML= inner[0];
+                document.getElementById("second_player_label").innerHTML= inner[1];
+            }
+
+            function hidePopup() {
+                popup.className = "hidden";
+            }
+
+            function addGame() {
+                console.log("Hi");
+            }
+
         </script>
     </body>
 </html>
