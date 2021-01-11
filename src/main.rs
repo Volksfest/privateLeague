@@ -1,7 +1,7 @@
 mod league;
 mod parser;
 mod serialization;
-mod websocket;
+mod ws;
 
 use crate::league::league::League;
 use crate::parser::command::{Command, LeagueCommand};
@@ -10,6 +10,10 @@ use crate::parser::command::GameArgs;
 use clap::Clap;
 use std::path::Path;
 use std::sync::mpsc::Sender;
+use std::net::TcpListener;
+use std::time::Duration;
+
+
 
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Hodor")]
@@ -72,20 +76,58 @@ fn main() {
         std::process::exit(1);
     }
 
+    let listener = TcpListener::bind(opts.host.clone()).unwrap();
+    listener.set_nonblocking(true).expect("Cannot set non-blocking");
+
+    let mut clients =Vec::new();
+
     let (sender, receiver) = std::sync::mpsc::channel();
-
-    let client_send_channel = sender.clone();
-    let host = opts.host.clone();
-    std::thread::spawn(move || websocket::ws::wait_for_clients(client_send_channel, host));
-
-    let mut client_channels : Vec<Sender<String>> = Vec::new();
-
     std::thread::spawn(|| keyboard_input(sender));
 
     loop {
-        let msg = match receiver.recv() {
-            Ok(m) => m,
-            Err(e) => {println!("Got an error: {}", e); continue;}
+
+        let mut some_msg : Option<Command>;
+        let mut idx : usize = 0;
+
+        // TODO maybe a bit better structure... this is a bit weird as it handles http quite arbitrarily
+        // handle new requests
+        match ws::ws::handle_request( &listener, &opts.host) {
+            // new client
+            Ok(mut client) => {
+                client.set_nonblocking(true);
+                // TODO remove by building the initial dom before?!?
+                client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
+                clients.push(client);},
+            // unimportant error or handled http request
+            Err(()) => (),
+        }
+
+        // handle receive from keyboard
+        some_msg = match receiver.try_recv() {
+            Ok(m) => Some(m),
+            Err(e) => None // no data or disconnect; latter should not be able to happen...
+        };
+
+        // handle receive from clients
+        // TODO [actually will be never done] make a _fair_ scheduling to prevent DOS
+        if some_msg.is_none() {
+            for client in &mut clients {
+                match ws::ws::handle_client(client) {
+                    Some(cmd) => {
+                        some_msg = Some(cmd);
+                        break; }
+                    _ => (),
+                }
+                idx += 1;
+            }
+        }
+
+        let msg = match some_msg {
+            Some(m) => m,
+            None => {
+                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
         };
 
         match msg {
@@ -93,25 +135,22 @@ fn main() {
                 LeagueCommand::AddGame(game) => {
                     league.add_game(&game);
                     save(&opts.config, &league);
-                    for channel in &client_channels {
-                        channel.send(serde_json::to_string(&league).unwrap());
+                    for client in &mut clients {
+                        client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
                     }
                 }
             },
             Command::Serialize => {
                 save(&opts.config, &league);
             },
-            Command::NewClient(client) => {
-                client.send(serde_json::to_string(&league).unwrap());
-                client_channels.push(client);
-            },
-            Command::Quit => break
+            Command::Quit => break,
+            Command::CloseClient => {clients.remove(idx); println!("Disconnected")},
         };
     }
 
     /*
-     TODO WebService
-     TODO Session-Liga Bind
+     TODO Better Web
+       TODO gen TODOS...
 
      TODO Statistics
 

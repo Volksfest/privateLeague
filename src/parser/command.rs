@@ -20,6 +20,6 @@ pub enum LeagueCommand {
 pub enum Command{
     Modify(LeagueCommand),
     Serialize,
-    NewClient(Sender<String>),
+    CloseClient,
     Quit,
 }
