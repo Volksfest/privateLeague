@@ -26,8 +26,20 @@ fn save(file : &String, league : &League) {
     std::fs::write(file, serde_json::to_string_pretty(league).unwrap());
 }
 
-fn keyboard_input() {
+fn keyboard_input(sender : Sender<Command>) {
+    loop {
+        let mut guess = String::new();
+        std::io::stdin()
+            .read_line(&mut guess)
+            .expect("Failed to read line");
 
+        // Parse it
+        let command = parser::parse_input(&mut guess);
+        match command {
+            Ok(cmd) => {sender.send(cmd);},
+            Err(e) => {println!("{}", e);},
+        }
+    }
 }
 
 fn main() {
@@ -68,21 +80,7 @@ fn main() {
 
     let mut client_channels : Vec<Sender<String>> = Vec::new();
 
-    std::thread::spawn(move || {
-        loop {
-            let mut guess = String::new();
-            std::io::stdin()
-                .read_line(&mut guess)
-                .expect("Failed to read line");
-
-            // Parse it
-            let command = parser::parse_input(&mut guess);
-            match command {
-                Ok(cmd) => {sender.send(cmd);},
-                Err(e) => {println!("{}", e);},
-            }
-        }
-    });
+    std::thread::spawn(|| keyboard_input(sender));
 
     loop {
         let msg = match receiver.recv() {
