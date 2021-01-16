@@ -80,6 +80,10 @@
         .active {
             display: block;
         }
+
+        #error_output {
+            color:#f00;
+        }
         </style>
     </head>
     <body>
@@ -115,6 +119,9 @@
                 <input type="text" id="duration_text" name="duration" value="0:00" />
             </div>
             <div class="row">
+                <div id="error_output"></div>
+            </div>
+            <div class="row">
                 <input type="button" id="submit" name="game_submit" value="Add" style="margin-right:5px" onclick="addGame()"/>
                 <input type="button" id="cancel" name="game_cancel" value="Cancel" onclick="hidePopup()"/>
             </div>
@@ -127,6 +134,8 @@
 
             var wsUri = "ws://[[ADDR]]/";
             var websocket = new WebSocket(wsUri);
+
+            var reg = /^([1-9]?[0-9]):([0-5][0-9])$/;
 
             websocket.onmessage = function(e) {
                 var league = JSON.parse(e.data);
@@ -212,6 +221,7 @@
                 }
 
                 this.appendChild(popup);
+                document.getElementById("error_output").innerHTML = "";
                 // TODO check size and make correct positioning
                 popup.className="active";
                 var inner = this.innerText.split("\n");
@@ -224,14 +234,35 @@
             }
 
             function addGame() {
+                // Control checks:
+                var race1 = document.getElementById("first_player_race_input").value;
+                var race2 = document.getElementById("second_player_race_input").value;
+                var time = document.getElementById("duration_text").value;
+                var match = reg.exec(time);
+
+                var error = document.getElementById("error_output");
+
+                if (document.querySelector("#race option[value='" + race1 + "']") == null) {
+                    error.innerHTML = "Rasse für Spieler 1...";
+                    return;
+                }
+                if (document.querySelector("#race option[value='" + race2 + "']") == null) {
+                    error.innerHTML = "Rasse für Spieler 2...";
+                    return;
+                }
+                if (match == null) {
+                    error.innerHTML = "Spieldauer...";
+                    return;
+                }
+
                 json = JSON.stringify({
                     "first_player_win": document.querySelector('input[name="first_player_won"]:checked').value == "true",
                     "player1": [document.getElementById("first_player_label").innerText,
-                                document.getElementById("first_player_race_input").value.charAt(0).toLowerCase()],
+                                race1.charAt(0).toLowerCase()],
                     "player2": [document.getElementById("second_player_label").innerText,
-                                document.getElementById("second_player_race_input").value.charAt(0).toLowerCase()],
-                    "duration_min" : 2,
-                    "duration_sec" : 37,
+                                race2.charAt(0).toLowerCase()],
+                    "duration_min" : parseInt(match[1]),
+                    "duration_sec" : parseInt(match[2])
                 });
                 websocket.send(json);
                 hidePopup();
