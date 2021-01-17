@@ -8,6 +8,17 @@ pub enum Race {
     Protoss,
 }
 
+impl Race {
+    pub fn char_to_race(r : char) -> Option<Race>{
+        match r {
+            'z' => Some(Race::Zerg),
+            'p' => Some(Race::Protoss),
+            't' => Some(Race::Terran),
+            _ => None
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize)]
 pub struct Duration {

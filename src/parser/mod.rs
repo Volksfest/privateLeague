@@ -1,7 +1,7 @@
 pub mod command;
 
 use command::Command;
-use crate::parser::command::{GameArgs, LeagueCommand};
+use crate::parser::command::{AddGameArgs, LeagueCommand};
 
 pub fn parse_input_for_game(literals : &Vec<&str>) -> Result<Command,String> {
     if literals.len() < 5 {
@@ -35,7 +35,7 @@ pub fn parse_input_for_game(literals : &Vec<&str>) -> Result<Command,String> {
 
     }
 
-    Ok(Command::Modify(LeagueCommand::AddGame(GameArgs{
+    Ok(Command::Modify(LeagueCommand::AddGame(AddGameArgs {
         player1: (player1, c1.to_ascii_lowercase()),
         player2: (player2, c2.to_ascii_lowercase()),
         first_player_win: c1.is_uppercase(),

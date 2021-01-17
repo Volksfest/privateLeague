@@ -4,7 +4,7 @@ use super::game::Game;
 use super::game::Duration;
 use super::game::Race;
 
-use crate::parser::command::GameArgs;
+use crate::parser::command::{AddGameArgs, RemoveGameArgs};
 
 use serde::{Serialize, Deserialize};
 
@@ -94,7 +94,57 @@ impl League {
         true
     }
 
-    pub fn add_game_raw(&mut self, idx: usize, win: bool, races: (Race, Race), duration : Duration) -> Result<(), String> {
+    fn get_player_idx(&self, player : &String) -> Option<usize> {
+        for (i, p) in self.players.iter().enumerate() {
+            if p.name == *player {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    // bool is for inverting player one and player two
+    fn get_match_idx(&self, player1 : &String, player2 : &String) -> Option<(usize, bool)> {
+        let p1_idx = self.get_player_idx(player1)?;
+        let p2_idx = self.get_player_idx(player2)?;
+
+        for (i, m) in self.matches.iter().enumerate() {
+            if m.players == (p1_idx, p2_idx) {
+                return Some((i, false));
+            } else if m.players == (p2_idx, p1_idx) {
+                return Some((i, true));
+            }
+        }
+        None
+    }
+
+    pub fn add_game(&mut self, args : &AddGameArgs) -> Result<(), String>{
+
+        let (idx, invert) = match self.get_match_idx(&args.player1.0, &args.player2.0) {
+            Some(r) => r,
+            None => return Err(String::from("Match not found")) // actually should not be possible...
+        };
+
+        let r1 = match Race::char_to_race(args.player1.1) {
+            Some(r) => r,
+            None => return Err(String::from("Char is not a race code"))
+        };
+
+        let r2 = match Race::char_to_race(args.player2.1) {
+            Some(r) => r,
+            None => return Err(String::from("Char is not a race code"))
+        };
+
+        let win = args.first_player_win;
+        self.add_game_raw(
+            idx,
+            (win && !invert) || (!win && invert),
+            (r1, r2),
+            Duration{ min: args.duration_min, sec: args.duration_sec })?;
+        Ok(())
+    }
+
+    fn add_game_raw(&mut self, idx: usize, win: bool, races: (Race, Race), duration : Duration) -> Result<(), String> {
         let m = &mut self.matches[idx];
         if m.winner().is_some() {
             return Err(String::from("Match is already finished"));
@@ -104,64 +154,13 @@ impl League {
         Ok(())
     }
 
-    pub fn add_game(&mut self, args : &GameArgs) -> Result<(), String>{
-        let idx_finder = |n : &String| -> Option<usize> {
-            for (i, p) in self.players.iter().enumerate() {
-                if p.name == *n {
-                    return Some(i);
-                }
-            }
-            return None;
+    pub fn remove_game(&mut self, args : &RemoveGameArgs) -> Result<(), String>{
+        let idx = match self.get_match_idx(&args.player1, &args.player2) {
+            Some((id, invert)) => id,
+            None => return Err(String::from("Match not found")),
         };
 
-        let i1 = match idx_finder(&args.player1.0) {
-            Some(r) => r,
-            None => return Err(String::from("Player not in the league"))
-        };
-        let i2 = match idx_finder(&args.player2.0) {
-            Some(r) => r,
-            None => return Err(String::from("Player not in the league"))
-        };
-
-        let match_idx_finder = |i1 :usize, i2: usize| -> Option<(usize,bool)> {
-            for (i, m) in self.matches.iter().enumerate() {
-                if m.players == (i1, i2) {
-                    return Some((i,false));
-                } else if m.players == (i2, i1) {
-                    return Some((i, true));
-                }
-            }
-            return None;
-        };
-        let idx = match match_idx_finder(i1, i2) {
-            Some(r) => r,
-            None => return Err(String::from("Match not found")) // actually should not be possible...
-        };
-
-        let race_converter = |r : char| -> Option<Race> {
-            match r {
-                'z' => Some(Race::Zerg),
-                'p' => Some(Race::Protoss),
-                't' => Some(Race::Terran),
-                _ => None
-            }
-        };
-
-        let r1 = match race_converter(args.player1.1) {
-            Some(r) => r,
-            None => return Err(String::from("Char is not a race code"))
-        };
-        let r2 = match race_converter(args.player2.1) {
-            Some(r) => r,
-            None => return Err(String::from("Char is not a race code"))
-        };
-
-        let win = args.first_player_win;
-        self.add_game_raw(
-            idx.0,
-            (win && !idx.1) || (!win && idx.1),
-            (r1, r2),
-            Duration{ min: args.duration_min, sec: args.duration_sec })?;
+        self.matches[idx].games.clear();
         Ok(())
     }
 
@@ -169,7 +168,3 @@ impl League {
         self.matches.get(idx)
     }
 }
-
-
-
-

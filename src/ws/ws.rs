@@ -12,7 +12,7 @@ use websocket::result::WebSocketError;
 use crate::league::league::League;
 use crate::Command;
 use std::sync::mpsc::{Sender, channel};
-use crate::parser::command::{GameArgs, LeagueCommand};
+use crate::parser::command::{AddGameArgs, LeagueCommand};
 
 pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) -> Option<Command> {
     match client.recv_message() {
@@ -20,7 +20,7 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
 
             // getting (text) message
             websocket::message::OwnedMessage::Text(t) => {
-                let game_message: Result<GameArgs, serde_json::Error> = serde_json::from_str(t.as_str());
+                let game_message: Result<AddGameArgs, serde_json::Error> = serde_json::from_str(t.as_str());
                 match game_message {
                     Ok(args) => {
                         Some(Command::Modify(LeagueCommand::AddGame(args)))
@@ -77,7 +77,7 @@ pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Resul
         .replace("[[ADDR]]", host.as_str());
 
     // Check if WS Upgrade
-    let mut client: websocket::sync::Client<std::net::TcpStream> = match stream.into_ws() {
+    let client: websocket::sync::Client<std::net::TcpStream> = match stream.into_ws() {
         // Do upgrade
         Ok(upgrade) => {
             match upgrade.accept() {

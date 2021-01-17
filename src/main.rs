@@ -5,14 +5,14 @@ mod ws;
 
 use crate::league::league::League;
 use crate::parser::command::{Command, LeagueCommand};
-use crate::parser::command::GameArgs;
+use crate::parser::command::AddGameArgs;
 
 use clap::Clap;
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::net::TcpListener;
 use std::time::Duration;
-
+use websocket::websocket_base::stream::sync::TcpStream;
 
 
 #[derive(Clap)]
@@ -138,7 +138,14 @@ fn main() {
                     for client in &mut clients {
                         client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
                     }
-                }
+                },
+                LeagueCommand::RemoveGames(game) => {
+                    league.remove_game(&game);
+                    save(&opts.config, &league);
+                    for client in &mut clients {
+                        client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
+                    }
+                },
             },
             Command::Serialize => {
                 save(&opts.config, &league);
