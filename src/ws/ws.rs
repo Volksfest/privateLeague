@@ -20,10 +20,11 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
 
             // getting (text) message
             websocket::message::OwnedMessage::Text(t) => {
-                let game_message: Result<AddGameArgs, serde_json::Error> = serde_json::from_str(t.as_str());
+                //let game_message: Result<AddGameArgs, serde_json::Error> = serde_json::from_str(t.as_str());
+                let game_message : Result<LeagueCommand, serde_json::Error> = serde_json::from_str(t.as_str());
                 match game_message {
                     Ok(args) => {
-                        Some(Command::Modify(LeagueCommand::AddGame(args)))
+                        Some(Command::Modify(args))
                     },
                     Err(e) => None
                 }

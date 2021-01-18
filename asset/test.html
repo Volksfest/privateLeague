@@ -212,6 +212,7 @@
                     last.insertAdjacentHTML("beforeend", "<div class='" + class_name + "'><div class='"+first_player_class+"'>" + league.players[element.players[0]].name + "</div><div class='"+second_player_class+"'>" + league.players[element.players[1]].name + "</div>"+info+"</div>");
                     var last_match = last.lastChild;
                     last_match.addEventListener("click", openPopup, true);
+                    last_match.addEventListener("contextmenu", openContext);
                 });
             };
 
@@ -227,6 +228,20 @@
                 var inner = this.innerText.split("\n");
                 document.getElementById("first_player_label").innerHTML= inner[0];
                 document.getElementById("second_player_label").innerHTML= inner[1];
+            }
+
+            function openContext(e) {
+                console.log(this);
+                var inner = this.innerText.split("\n");
+                if (confirm("Delete the games of the match '" +inner[0]+" vs. "+inner[1]+"'?")) {
+                    json = JSON.stringify({"RemoveGames":{
+                    "player1": inner[0],
+                    "player2": inner[1],
+                    }});
+                    websocket.send(json);
+                }
+                e.preventDefault();
+                return false;
             }
 
             function hidePopup() {
@@ -255,7 +270,7 @@
                     return;
                 }
 
-                json = JSON.stringify({
+                json = JSON.stringify({"AddGame":{
                     "first_player_win": document.querySelector('input[name="first_player_won"]:checked').value == "true",
                     "player1": [document.getElementById("first_player_label").innerText,
                                 race1.charAt(0).toLowerCase()],
@@ -263,7 +278,7 @@
                                 race2.charAt(0).toLowerCase()],
                     "duration_min" : parseInt(match[1]),
                     "duration_sec" : parseInt(match[2])
-                });
+                }});
                 websocket.send(json);
                 hidePopup();
             }
