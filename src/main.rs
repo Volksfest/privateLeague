@@ -1,19 +1,16 @@
 mod league;
 mod parser;
-mod serialization;
 mod ws;
 
 use crate::league::league::League;
 use crate::parser::command::{Command, LeagueCommand};
-use crate::parser::command::AddGameArgs;
 
 use clap::Clap;
 use std::path::Path;
 use std::sync::mpsc::Sender;
 use std::net::TcpListener;
 use std::time::Duration;
-use websocket::websocket_base::stream::sync::TcpStream;
-use chrono::{NaiveDate, Datelike};
+use chrono::Datelike;
 
 
 #[derive(Clap)]
@@ -28,7 +25,14 @@ struct Opts{
 }
 
 fn save(file : &String, league : &League) {
-    std::fs::write(file, serde_json::to_string_pretty(league).unwrap());
+    if let Ok(msg) = serde_json::to_string_pretty(league) {
+        if let Err(_) = std::fs::write(file, msg) {
+            println!("Could not write the save file");
+        }
+    } else {
+        println!("Could not serialize");
+    }
+
 }
 
 fn keyboard_input(sender : Sender<Command>) {
@@ -41,7 +45,9 @@ fn keyboard_input(sender : Sender<Command>) {
         // Parse it
         let command = parser::parse_input(&mut guess);
         match command {
-            Ok(cmd) => {sender.send(cmd);},
+            Ok(cmd) => { if let Err(_) = sender.send(cmd) {
+                println!("Could not send cmd from input");
+            }},
             Err(e) => {println!("{}", e);},
         }
     }
@@ -96,9 +102,15 @@ fn main() {
         match ws::ws::handle_request( &listener, &opts.host) {
             // new client
             Ok(mut client) => {
-                client.set_nonblocking(true);
+                if let Err(_) = client.set_nonblocking(true) {
+                    println!("Some Error with setting nonblocking");
+                }
                 // TODO remove by building the initial dom before?!?
-                client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
+                if let Ok(text_msg) = serde_json::to_string(&league) {
+                    if client.send_message(&websocket::Message::text(text_msg)).is_err() {
+                        println!("Some Error with Websocket")
+                    }
+                }
                 clients.push(client);},
             // unimportant error or handled http request
             Err(()) => (),
@@ -107,7 +119,7 @@ fn main() {
         // handle receive from keyboard
         some_msg = match receiver.try_recv() {
             Ok(m) => Some(m),
-            Err(e) => None // no data or disconnect; latter should not be able to happen...
+            Err(_) => None // no data or disconnect; latter should not be able to happen...
         };
 
         // handle receive from clients
@@ -135,17 +147,30 @@ fn main() {
         match msg {
             Command::Modify(args) => match args {
                 LeagueCommand::AddGame(game) => {
-                    league.add_game(&game);
+                    // TODO Move to a function
+                    if let Err(err) = league.add_game(&game) {
+                        println!("{}", err);
+                    }
                     save(&opts.config, &league);
                     for client in &mut clients {
-                        client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
+                        if let Ok(text_msg) = serde_json::to_string(&league) {
+                            if client.send_message(&websocket::Message::text(text_msg)).is_err() {
+                                println!("Some Error with Websocket")
+                            }
+                        }
                     }
                 },
                 LeagueCommand::RemoveGames(game) => {
-                    league.remove_game(&game);
+                    if let Err(err) = league.remove_game(&game) {
+                        println!("{}", err);
+                    }
                     save(&opts.config, &league);
                     for client in &mut clients {
-                        client.send_message(&websocket::Message::text(serde_json::to_string(&league).unwrap()));
+                        if let Ok(text_msg) = serde_json::to_string(&league) {
+                            if client.send_message(&websocket::Message::text(text_msg)).is_err() {
+                                println!("Some Error with Websocket")
+                            }
+                        }
                     }
                 },
             },

@@ -14,11 +14,11 @@ pub struct League {
 
     pub(super) matches: Vec<Match>,
 
-    pub(super) start_week: usize,
+    pub(super) start_week: u32,
 }
 
 impl League {
-    pub fn new(names: &Vec<String>, start_week : usize) -> Self {
+    pub fn new(names: &Vec<String>, start_week : u32) -> Self {
 
         // Create league struct with mapped names
         let mut l = League {
@@ -159,7 +159,7 @@ impl League {
 
     pub fn remove_game(&mut self, args : &RemoveGameArgs) -> Result<(), String>{
         let idx = match self.get_match_idx(&args.player1, &args.player2) {
-            Some((id, invert)) => id,
+            Some((id, _)) => id,
             None => return Err(String::from("Match not found")),
         };
 
@@ -167,6 +167,7 @@ impl League {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_match(& self, idx : usize) -> Option<&Match> {
         self.matches.get(idx)
     }

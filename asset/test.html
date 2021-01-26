@@ -12,6 +12,7 @@
 
 
         .week {display:flex; flex-direction:row; justify-content:space-around;}
+        .highlighted {background: #afa;}
         .played, .unplayed, .ongoing {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;  position: relative;}
         .normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
 
@@ -140,7 +141,7 @@
             websocket.onmessage = function(e) {
                 var league = JSON.parse(e.data);
 
-                console.log(league)
+                console.log(league);
 
                 player.innerHTML = '';
                 match.innerHTML = '';
@@ -214,6 +215,22 @@
                     last_match.addEventListener("click", openPopup, true);
                     last_match.addEventListener("contextmenu", openContext);
                 });
+
+                console.log(getWeekNumber() - league.start_week - 1);
+                var idx = getWeekNumber() - league.start_week - 1;
+                var weeks = document.getElementsByClassName("week");
+                if (idx < weeks.length) {
+                    weeks.item(idx).className="week highlighted";
+                }
+            };
+
+            // Thx Stackoverflow
+            function getWeekNumber(){
+                var d = new Date();
+                var dayNum = d.getUTCDay() || 7;
+                d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+                var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+                return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
             };
 
             function openPopup(e) {

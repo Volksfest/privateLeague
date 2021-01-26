@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use std::sync::mpsc::Sender;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AddGameArgs {

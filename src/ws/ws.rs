@@ -1,18 +1,13 @@
 use std::fs;
 
 use std::io::prelude::*;
-use std::net::TcpListener;
-
-use std::thread::{spawn, JoinHandle};
 
 use websocket::sync::server::upgrade::IntoWs;
 use websocket::result::WebSocketResult;
 use websocket::result::WebSocketError;
 
-use crate::league::league::League;
 use crate::Command;
-use std::sync::mpsc::{Sender, channel};
-use crate::parser::command::{AddGameArgs, LeagueCommand};
+use crate::parser::command::LeagueCommand;
 
 pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) -> Option<Command> {
     match client.recv_message() {
@@ -26,7 +21,7 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
                     Ok(args) => {
                         Some(Command::Modify(args))
                     },
-                    Err(e) => None
+                    Err(_) => None
                 }
             },
 
@@ -40,7 +35,7 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
         },
         WebSocketResult::Err(e) => match e {
             WebSocketError::NoDataAvailable => None,
-            WebSocketError::IoError(s) => None,
+            WebSocketError::IoError(_) => None,
             _ => {
                 println!("Got client error: {}", e); None
             }
@@ -67,8 +62,8 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
 // Error means dont care anymore and no new ws client
 pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Result<websocket::sync::Client<std::net::TcpStream>,()> {
     let stream = match listener.accept() {
-        Ok((stream, addr)) => stream,
-        Err(e) => return Err(()),
+        Ok((stream, _)) => stream,
+        Err(_) => return Err(()),
     };
 
     let filename = "asset/test.html";
@@ -94,8 +89,12 @@ pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Resul
                 content
             );
 
-            s.0.write(response.as_bytes()).unwrap();
-            s.0.flush().unwrap();
+            if s.0.write(response.as_bytes()).is_err() {
+                return Err(());
+            }
+            if s.0.flush().is_err() {
+                return Err(());
+            }
             return Err(());
         },
     };
