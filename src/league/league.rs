@@ -13,15 +13,18 @@ pub struct League {
     pub(super) players: Vec<Player>,
 
     pub(super) matches: Vec<Match>,
+
+    pub(super) start_week: usize,
 }
 
 impl League {
-    pub fn new(names: &Vec<String>) -> Self {
+    pub fn new(names: &Vec<String>, start_week : usize) -> Self {
 
         // Create league struct with mapped names
         let mut l = League {
             players: names.iter().map(|x| Player { name: x.clone() }).collect::<Vec<Player>>(),
             matches: Vec::new(),
+            start_week
         };
 
         // Create matches

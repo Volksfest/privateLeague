@@ -13,6 +13,7 @@ use std::sync::mpsc::Sender;
 use std::net::TcpListener;
 use std::time::Duration;
 use websocket::websocket_base::stream::sync::TcpStream;
+use chrono::{NaiveDate, Datelike};
 
 
 #[derive(Clap)]
@@ -68,7 +69,8 @@ fn main() {
             std::process::exit(1);
         }
     } else {
-        League::new(&opts.players.unwrap())
+        League::new(&opts.players.unwrap(),
+                    chrono::prelude::Local::today().naive_local().iso_week().week())
     };
 
     if !league.is_consistent() {
