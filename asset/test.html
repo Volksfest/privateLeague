@@ -7,9 +7,16 @@
         <style>
         #container {display:flex; flex-direction:column; height:100%; width:100%;}
         #output {width:100%}
-        #player {display:flex; justify-content:space-around; width:100%; flex-direction:row;}
-        #match {margin-top: 40px;}
 
+        #player {display:flex; flex-direction:column; width:400px;}
+
+        .row {display:flex; flex-direction:row;}
+        .col1, .col3, .col4, .col5 {width: 50px;text-align:center;}
+        .col2 {width: 200px;}
+        .winner_back {background-color : green}
+        .loser_back {background-color : red}
+
+        #match {margin-top: 40px;}
 
         .week {display:flex; flex-direction:row; justify-content:space-around;}
         .highlighted {background: #afa;}
@@ -141,16 +148,17 @@
             websocket.onmessage = function(e) {
                 var league = JSON.parse(e.data);
 
-                console.log(league);
-
                 player.innerHTML = '';
                 match.innerHTML = '';
 
                 var gpw = Math.floor(league.players.length / 2);
 
+                var score = []
                 league.players.forEach(element =>
-                    player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
-
+                    score.push({
+                        "name":element.name,
+                        "win":0,
+                        "loss":0}));
 
                 league.matches.forEach(function(element,index) {
                     var last = match.lastChild;
@@ -191,6 +199,18 @@
                         }
                     }
 
+                    if (class_name == "played") {
+                        var winner = element.players[1];
+                        var loser = element.players[0];
+                        if (first_player_class = "winner") {
+                            var buf = winner;
+                            winner = loser;
+                            loser = buf;
+                        }
+                        score[winner]["win"]++;
+                        score[loser]["loss"]++;
+                    }
+
                     var info = "";
                     if (class_name != "unplayed") {
                         var p1_races = "";
@@ -216,12 +236,51 @@
                     last_match.addEventListener("contextmenu", openContext);
                 });
 
-                console.log(getWeekNumber() - league.start_week - 1);
                 var idx = getWeekNumber() - league.start_week - 1;
                 var weeks = document.getElementsByClassName("week");
                 if (idx < weeks.length) {
                     weeks.item(idx).className="week highlighted";
                 }
+
+                score.sort(function(b,a) {
+                    if (a["win"] < b["win"] ) {
+                        return -1;
+                    } else if (a["win"] > b["win"]) {
+                        return 1;
+                    } else {
+                        if (a["loss"] > b["loss"]) {
+                            return -1;
+                        } else if (a["loss"] < b["loss"]) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    }
+                });
+
+                console.log(score);
+
+                //league.players.forEach(element =>
+                //    player.insertAdjacentHTML("beforeend", "<div>" + element.name + "</div>"));
+
+                score.forEach(function(element,idx) {
+                    player.insertAdjacentHTML("beforeend",
+                        "<div class='row'><div class='col1'>" + (idx+1) + "</div>" +
+                        "<div class='col2'>" + element["name"] + "</div>" +
+                        "<div class='col3'>" + (element["win"]+element["loss"]) + "</div>" +
+                        "<div class='col4'>" + element["win"] + "</div>" +
+                        "<div class='col5'>" + element["loss"] + "</div></div>")
+                    });
+                rows = player.getElementsByClassName("row");
+                rows[0].className += " winner_back";
+                rows[(rows.length - 1)].className += " loser_back";
+                player.insertAdjacentHTML("afterbegin",
+                        "<div class='row'><div class='col1'> # </div>" +
+                        "<div class='col2'> Name </div>" +
+                        "<div class='col3'> Sp </div>" +
+                        "<div class='col4'> S </div>" +
+                        "<div class='col5'> N </div></div>");
+
             };
 
             // Thx Stackoverflow
