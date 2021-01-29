@@ -241,12 +241,14 @@
 
                 var idx = week_number - league.start_week - 1;
                 var weeks = document.getElementsByClassName("week");
-                if (idx < weeks.length) {
+                if (idx < 0) {
+                    weeks.item(0).className="week highlighted";
+                } else if (idx < weeks.length) {
                     weeks.item(idx).className="week highlighted";
                 }
 
                 for (var i = 0; i < weeks.length; i++) {
-                    var analysis = getWeekAnalysis(league.start_week + i);
+                    var analysis = getWeekAnalysis(league.start_week + i + 1);
                     weeks[i].insertAdjacentHTML("afterbegin",
                         "<div class=date>" +
                         dateToString(analysis["start_date"]) + " - " +
