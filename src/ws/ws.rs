@@ -61,7 +61,10 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
 pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Result<websocket::sync::Client<std::net::TcpStream>, Option<String>> {
     let stream = match listener.accept() {
         Ok((stream, _)) => stream,
-        Err(e) => return Err(Some(e.to_string())),
+        Err(e) => return match e.raw_os_error() {
+            Some(11) => Err(None),
+            _ => Err(Some(e.to_string())),
+        },
     };
 
     let filename = "asset/test.html";
