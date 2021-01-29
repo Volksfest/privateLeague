@@ -9,7 +9,7 @@ use websocket::result::WebSocketError;
 use crate::Command;
 use crate::parser::command::LeagueCommand;
 
-pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) -> Option<Command> {
+pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) -> Result<Option<Command>, String> {
     match client.recv_message() {
         WebSocketResult::Ok(ws_msg) => match ws_msg {
 
@@ -19,26 +19,24 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
                 let game_message : Result<LeagueCommand, serde_json::Error> = serde_json::from_str(t.as_str());
                 match game_message {
                     Ok(args) => {
-                        Some(Command::Modify(args))
+                        Ok(Some(Command::Modify(args)))
                     },
-                    Err(_) => None
+                    Err(e) => Err(e.to_string())
                 }
             },
 
             // getting close
             websocket::message::OwnedMessage::Close(_) => {
-                Some(Command::CloseClient)
+                Ok(Some(Command::CloseClient))
             }
 
             // ignore rest
-            _ => None
+            _ => Ok(None)
         },
         WebSocketResult::Err(e) => match e {
-            WebSocketError::NoDataAvailable => None,
-            WebSocketError::IoError(_) => None,
-            _ => {
-                println!("Got client error: {}", e); None
-            }
+            WebSocketError::NoDataAvailable => Ok(None),
+            WebSocketError::IoError(_) => Ok(None),
+            e => Err(e.to_string())
         }
     }
 /*
@@ -60,10 +58,10 @@ pub fn handle_client(client: &mut websocket::sync::Client<std::net::TcpStream>) 
 }
 
 // Error means dont care anymore and no new ws client
-pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Result<websocket::sync::Client<std::net::TcpStream>,()> {
+pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Result<websocket::sync::Client<std::net::TcpStream>, Option<String>> {
     let stream = match listener.accept() {
         Ok((stream, _)) => stream,
-        Err(_) => return Err(()),
+        Err(e) => return Err(Some(e.to_string())),
     };
 
     let filename = "asset/test.html";
@@ -78,7 +76,7 @@ pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Resul
         Ok(upgrade) => {
             match upgrade.accept() {
                 Ok(client) => client,
-                Err(_) => return Err(()),
+                Err((_,e)) => return Err(Some(e.to_string())),
             }
         },
         // Send HTTP Response if not upgrade
@@ -90,12 +88,12 @@ pub fn handle_request(listener: &std::net::TcpListener, host : &String) -> Resul
             );
 
             if s.0.write(response.as_bytes()).is_err() {
-                return Err(());
+                return Err(Some(String::from("Error on write")));
             }
             if s.0.flush().is_err() {
-                return Err(());
+                return Err(Some(String::from("Error on flush")));
             }
-            return Err(());
+            return Err(None);
         },
     };
 

@@ -113,7 +113,8 @@ fn main() {
                 }
                 clients.push(client);},
             // unimportant error or handled http request
-            Err(()) => (),
+            Err(Some(e)) => println!("{}",e),
+            Err(None) => (),
         }
 
         // handle receive from keyboard
@@ -127,9 +128,10 @@ fn main() {
         if some_msg.is_none() {
             for client in &mut clients {
                 match ws::ws::handle_client(client) {
-                    Some(cmd) => {
+                    Ok(Some(cmd)) => {
                         some_msg = Some(cmd);
-                        break; }
+                        break; },
+                    Err(e) => println!("{}",e),
                     _ => (),
                 }
                 idx += 1;
