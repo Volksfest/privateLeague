@@ -19,8 +19,9 @@
         #match {margin-top: 40px;}
 
         .week {display:flex; flex-direction:row; justify-content:space-around;}
-        .highlighted {background: #afa;}
-        .played, .unplayed, .ongoing {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;  position: relative;}
+        .highlighted {background: #afa; }
+
+        .played, .unplayed, .ongoing, .date {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;  position: relative; }
         .normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
 
         .score { display:flex; flex-direction:column; justify-content:space-around; height:100%;}
@@ -236,11 +237,21 @@
                     last_match.addEventListener("contextmenu", openContext);
                 });
 
-                var idx = getWeekNumber() - league.start_week - 1;
+                var week_number = getWeekNumber();
+
+                var idx = week_number - league.start_week - 1;
                 var weeks = document.getElementsByClassName("week");
                 if (idx < weeks.length) {
                     weeks.item(idx).className="week highlighted";
                 }
+
+                for (var i = 0; i < weeks.length; i++) {
+                    var analysis = getWeekAnalysis(league.start_week + i);
+                    weeks[i].insertAdjacentHTML("afterbegin",
+                        "<div class=date>" +
+                        dateToString(analysis["start_date"]) + " - " +
+                        dateToString(analysis["end_date"]) + "</div>");
+                };
 
                 score.sort(function(b,a) {
                     if (a["win"] < b["win"] ) {
@@ -289,8 +300,26 @@
                 var dayNum = d.getUTCDay() || 7;
                 d.setUTCDate(d.getUTCDate() + 4 - dayNum);
                 var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-                return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
+                return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
             };
+
+            function dateToString(date) {
+                return date.getDate() + "." + (date.getMonth() + 1) + ".";
+            }
+
+            function getWeekAnalysis(week) {
+                var yearStart = new Date(Date.UTC((new Date()).getUTCFullYear(),0,1));
+                var days_to_monday = (yearStart.getUTCDay() + 6) %7;
+                yearStart.setDate(yearStart.getDate() - days_to_monday);
+                var startDate = new Date(yearStart);
+                var endDate = new Date(yearStart);
+                startDate.setDate(startDate.getDate() + (7 * (week - 1)) );
+                endDate.setDate(endDate.getDate() + (7 * week - 1));
+                return {
+                    "start_date": new Date(startDate),
+                    "end_date": new Date(endDate),
+                    };
+            }
 
             function openPopup(e) {
                 if (popup.className == "active") {
