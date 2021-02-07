@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Race {
     Terran,
     Zerg,
@@ -15,6 +15,14 @@ impl Race {
             'p' => Some(Race::Protoss),
             't' => Some(Race::Terran),
             _ => None
+        }
+    }
+
+    pub fn race_to_char(&self) -> char {
+        match self {
+            Race::Terran => 'T',
+            Race::Protoss => 'P',
+            Race::Zerg => 'Z'
         }
     }
 }

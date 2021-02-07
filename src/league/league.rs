@@ -10,11 +10,11 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct League {
-    pub(super) players: Vec<Player>,
+    pub players: Vec<Player>,
 
-    pub(super) matches: Vec<Match>,
+    pub matches: Vec<Match>,
 
-    pub(super) start_week: u32,
+    pub start_week: u32,
 }
 
 impl League {
@@ -71,7 +71,7 @@ impl League {
         l
     }
 
-    pub fn weeks_count(player_count : usize) -> usize {
+    pub fn weeks_count_static(player_count : usize) -> usize {
         match player_count % 2 {
             0 => player_count - 1,
             1 => player_count,
@@ -79,18 +79,29 @@ impl League {
         }
     }
 
-    pub fn match_count(player_count : usize) -> usize {
+    pub fn weeks_count(&self) -> usize {
+        League::weeks_count_static(self.players.len())
+    }
+
+    pub fn match_count_static(player_count : usize) -> usize {
         player_count * (player_count - 1) / 2
     }
 
-    pub fn mathes_per_week(player_count : usize) -> usize {
-        League::match_count(player_count) / League::weeks_count(player_count)
+    pub fn match_count(&self) -> usize {
+        League::match_count_static(self.players.len())
+    }
+
+    pub fn matches_per_week_static(player_count : usize) -> usize {
+        League::match_count_static(player_count) / League::weeks_count_static(player_count)
+    }
+
+    pub fn matches_per_week(&self) -> usize {
+        League::matches_per_week_static(self.players.len())
     }
 
     pub fn is_consistent(&self) -> bool {
-        let player_count = self.players.len();
 
-        if League::match_count(player_count) != self.matches.len() {
+        if self.match_count() != self.matches.len() {
             return false;
         }
 
@@ -165,6 +176,29 @@ impl League {
 
         self.matches[idx].games.clear();
         Ok(())
+    }
+
+    pub fn get_score(& self) -> Vec<(String, usize, usize)> {
+        let mut score:Vec<(String, usize,usize)> = Vec::new();
+        for i in &self.players {
+            score.push((i.name.clone(), 0, 0));
+        }
+
+        for m in &self.matches {
+            match m.winner() {
+                Some(w) => {
+                    score[w].1 = score[w].1 + 1;
+                    let l = match m.players.0 == w {
+                        true => m.players.1,
+                        false => m.players.0
+                    };
+                    score[l].2 = score[l].2 + 1;
+                },
+                None => continue
+            };
+        }
+
+        score
     }
 
     #[allow(dead_code)]
