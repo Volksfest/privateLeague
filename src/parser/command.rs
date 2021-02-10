@@ -22,10 +22,3 @@ pub enum LeagueCommand {
     // TODO Do Statistics
     // TODO Do Debug
 }
-
-pub enum Command{
-    Modify(LeagueCommand),
-    Serialize,
-    CloseClient,
-    Quit,
-}

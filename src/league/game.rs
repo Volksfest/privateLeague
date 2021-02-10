@@ -28,10 +28,10 @@ impl Race {
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Duration {
-    pub(super) min: usize,
-    pub(super) sec: usize,
+    pub min: usize,
+    pub sec: usize,
 }
 
 #[derive(Serialize, Deserialize)]

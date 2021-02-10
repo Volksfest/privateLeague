@@ -1,5 +1,6 @@
 use super::game::Game;
 use super::game::Race;
+use super::game::Duration;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
@@ -58,6 +59,14 @@ impl Match {
             stats.push((!g.first_player_won, g.races.1.clone()));
         }
 
+        stats
+    }
+
+    pub fn get_durations(&self) -> Vec<Duration> {
+        let mut stats = Vec::new();
+        for g in &self.games {
+            stats.push(g.duration.clone());
+        }
         stats
     }
 }

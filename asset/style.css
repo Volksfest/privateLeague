@@ -11,48 +11,39 @@
 
         #match {margin-top: 40px;}
 
-        .week {display:flex; flex-direction:row; justify-content:space-around;}
+        .week {display:flex; flex-direction:row; justify-content:flex-start;}
         .highlighted {background: #afa; }
 
-        .played, .unplayed, .ongoing, .date {display:flex; flex-direction:column; justify-content:space-around; width:100px; height:80px; margin:5px;  position: relative; }
-        .date {text-align:center; }
+        .week_matches {display:flex; flex-direction:row; justify-content:space-around; width:100%;}
 
-        .normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
+        .date {text-align:center; display:flex; flex-direction:column; justify-content:space-around; margin:5px;}
+        .date { }
 
-        .score { display:flex; flex-direction:column; justify-content:space-around; height:100%;}
-        .score div { display:flex; flex-direction:row; justify-content:space-around;}
+        //.played, .unplayed, .ongoing {}
 
-        .info {
-            display: none;
-            position: absolute;
-            width: 100px;
-            height: 80px;
-            left: 100px;
-            border: 2px solid #000;
-            border-left: 0px;
-            background-color: #fff;
-            z-index: 1;
-        }
-        .ongoing .info {
-            background-color: #cc0;
-        }
+        .played {border: 2px solid #000; background-color:#fff;}
+        .unplayed {border: 2px dashed #aaa; background-color:#fff;}
+        .ongoing {border: 2px solid #000; background-color: #cc0;}
+
+        .match_box { display:flex; flex-direction:row; margin:5px; position: relative; }
+
+        .player_box {width: 120px;}
+        .games_box {width: 150px; display:flex; flex-direction:row;}
+
+        .game_box {width: 50px;}
+
+        .name_box, .race_box {height: 50px; line-height:50px; text-align:center;}
+
+        .space_box, .time_box {height:30px; line-height:30px; text-align:center;font-size:11px;}
 
         .winner {color : green}
         .loser {color : red}
-        span.winner, span.loser {10px;}
 
-        .played {border: 2px solid #000; }
-        .unplayed {border: 2px dashed #aaa; }
-        .ongoing {border: 2px solid #000; background-color: #cc0;}
 
-        .played:hover, .ongoing:hover {
-            border-right: 0px;
-            padding-right: 2px;
-        }
+        //.normal_player, .winner, .loser {text-align: center; border:none; width: 100%;margin:0px;padding:0px;}
 
-        .played:hover .info, .ongoing:hover .info {
-            display:block;
-        }
+
+
 
         #popup {
             position: absolute;

@@ -1,27 +1,22 @@
 mod league;
 mod parser;
-mod ws;
 
 use crate::league::league::League;
-use crate::league::game::Race;
-use crate::parser::command::{Command, LeagueCommand};
+use crate::parser::command::LeagueCommand;
 
 use actix_files as fs;
 
 use clap::Clap;
 use std::path::Path;
-use std::sync::mpsc::Sender;
-use std::net::TcpListener;
-use std::time::Duration;
 use std::cmp::Ordering;
 use chrono::prelude::*;
 
 use std::sync::Mutex;
 use std::sync::Arc;
 
-use actix_web::{get, web, App, HttpServer, Responder, HttpRequest, HttpResponse};
-use std::ops::{DerefMut, Deref};
+use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
 
+// TODO beautify
 fn create_html(league : &League) -> String {
     let mut builder = string_builder::Builder::default();
 
@@ -92,23 +87,28 @@ fn create_html(league : &League) -> String {
     for w in 0..league.weeks_count() {
         let begin_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Mon);
         let end_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Sun);
-        builder.append(format!(r#"<div class="week{}"><div class="date">{:02}.{:02}<br>-<br>{:02}.{:02}</div>"#,
+        builder.append(format!(r#"<div class="week{}"><div class="date">{:02}.{:02}<br>-<br>{:02}.{:02}</div><div class="week_matches">"#,
             if league.start_week + w as u32== todays_week {" highlighted"} else {""},
             begin_date.day(), begin_date.month(),
             end_date.day(), end_date.month()
         ));
 
         for i in 0..mpw {
-            let m = league.get_match(w * mpw + i).unwrap();
+            let match_index = w * mpw + i;
+            let m = league.get_match(match_index).unwrap();
             let winner = match m.winner() {
                 None => None,
                 Some(t) => Some(t == m.get_first_player())
             };
             builder.append(format!(
-               r#"<div class="{}">
-                    <div class="{}">{}</div>
-                    <div class="{}">{}</div>
+               r#"<div id="match_{}" class="match_box {}">
+                    <div class="player_box">
+                        <div class="name_box {}">{}</div>
+                        <div class="space_box">vs</div>
+                        <div class="name_box {}">{}</div>
+                    </div>
                   "#,
+               match_index,
                match winner {
                     None => if m.empty() {"unplayed"} else {"ongoing"},
                     Some(_) => "played"
@@ -123,24 +123,25 @@ fn create_html(league : &League) -> String {
                }, score[m.get_second_player()].0
             ));
 
+
+            builder.append(r#"<div class="games_box">"#);
             if !m.empty() {
-                builder.append(r#"<div class="info"><div class="score"><div>"#);
-                    for (won,race) in m.get_first_player_data() {
-                        builder.append(format!(r#"<span class="{}">{}</span>"#,
-                        if won {"winner"} else {"loser"},
-                        race.race_to_char()));
-                    }
-                builder.append(r#"</div><div>"#);
-                    for (won,race) in m.get_second_player_data() {
-                        builder.append(format!(r#"<span class="{}">{}</span>"#,
-                        if won {"winner"} else {"loser"},
-                        race.race_to_char()));
-                    }
-                builder.append(r#"</div></div></div>"#);
+                let p1 = m.get_first_player_data();
+                let p2 = m.get_second_player_data();
+                let duration = m.get_durations();
+                for (dur, ((p1_won, p1_race), (p2_won, p2_race))) in duration.iter().zip(p1.iter().zip(p2.iter())) {
+                    builder.append(format!(r#"<div class="game_box"><div class="race_box {}">{}</div><div class="time_box">{:02}:{:02}</div><div class="race_box {}">{}</div></div>"#,
+                                           if *p1_won { "winner" } else { "loser" },
+                                           p1_race.race_to_char(),
+                                           dur.min, dur.sec,
+                                           if *p2_won { "winner" } else { "loser" },
+                                           p2_race.race_to_char()));
+                }
             }
-            builder.append("</div>");
+            builder.append(r#"</div></div>"#);
+
         }
-        builder.append("</div>");
+        builder.append("</div></div>");
     }
 
 
@@ -187,15 +188,47 @@ fn create_html(league : &League) -> String {
 }
 
 #[get("/")]
-async fn single(data: web::Data<Arc<Mutex<League>>>) -> impl Responder {
-    let league = data.lock().unwrap();
+async fn single(data: web::Data<Arc<Mutex<(String,League)>>>) -> impl Responder {
+    let g = data.lock().unwrap();
     HttpResponse::Ok()
-        .body(create_html(&league))
+        .body(create_html(&g.1))
 }
 
-#[get("/api/")]
-async fn api() -> impl Responder {
-    HttpResponse::Ok().body("Hi")
+#[post("/api")]
+async fn api(ctx : web::Data<Arc<Mutex<(String,League)>>>, payload : web::Json<LeagueCommand>) -> impl Responder {
+    println!("Got API call ({:?})", payload);
+
+    let mut g = match ctx.lock() {
+        Ok(g) => g,
+        _ => return HttpResponse::BadGateway().body("{\"Message\":\"Failed\"}")
+    };
+    let path = g.0.clone();
+
+    let league = &mut g.1;
+
+    // TODO beautify
+
+    let resp = serde_json::to_string(&payload.0).unwrap();
+
+    match payload.0
+    {
+        LeagueCommand::AddGame(game) => {
+            // TODO Move to a function
+            if let Err(err) = league.add_game(&game) {
+                println!("{}", err);
+            }
+            save(&path, &league);
+        }
+        LeagueCommand::RemoveGames(game) => {
+            if let Err(err) = league.remove_game(&game) {
+                println!("{}", err);
+            }
+            save(&path, &league);
+        }
+    }
+
+    HttpResponse::Ok()
+        .body(resp)
 }
 
 #[derive(Clap)]
@@ -217,38 +250,20 @@ fn save(file : &String, league : &League) {
     } else {
         println!("Could not serialize");
     }
-
 }
-
-fn keyboard_input(sender : Sender<Command>) {
-    loop {
-        let mut guess = String::new();
-        std::io::stdin()
-            .read_line(&mut guess)
-            .expect("Failed to read line");
-
-        // Parse it
-        let command = parser::parse_input(&mut guess);
-        match command {
-            Ok(cmd) => { if let Err(_) = sender.send(cmd) {
-                println!("Could not send cmd from input");
-            }},
-            Err(e) => {println!("{}", e);},
-        }
-    }
-}
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let opts: Opts = Opts::parse();
+
+    let path = opts.config.clone();
 
     if !Path::new(&opts.config).exists() && opts.players.is_none() {
         println!("The config must either exist or you have to give players!");
         std::process::exit(1);
     }
 
-    let mut league:League = if opts.players.is_none() {
+    let league:League = if opts.players.is_none() {
         if let Ok(content) = std::fs::read_to_string(&opts.config) {
             if let Ok(val) = serde_json::from_str(content.as_str()) {
                 val
@@ -265,14 +280,14 @@ async fn main() -> std::io::Result<()> {
                     Local::today().naive_local().iso_week().week())
     };
 
+    // Check for correct input file
     if !league.is_consistent() {
         println!("Config file has a broken state!");
         std::process::exit(1);
     }
 
-    // League checked
-
-    let shared_league = Arc::new(Mutex::new(league));
+    // Create league context
+    let shared_league = Arc::new(Mutex::new((path,league)));
 
     HttpServer::new(move ||
         App::new()
@@ -281,114 +296,10 @@ async fn main() -> std::io::Result<()> {
             .service(api)
             .service(fs::Files::new("/resource", "./asset").show_files_listing())
     )
-        .bind("127.0.0.1:8080")?
+        .bind(opts.host)?
         .run()
         .await
 
-
-/*
-    let listener = TcpListener::bind(opts.host.clone()).unwrap();
-    listener.set_nonblocking(true).expect("Cannot set non-blocking");
-
-    let mut clients =Vec::new();
-
-    let (sender, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(|| keyboard_input(sender));
-
-    loop {
-
-        let mut some_msg : Option<Command>;
-        let mut idx : usize = 0;
-
-        // TODO maybe a bit better structure... this is a bit weird as it handles http quite arbitrarily
-        // handle new requests
-        match ws::ws::handle_request( &listener, &opts.host) {
-            // new client
-            Ok(mut client) => {
-                if let Err(_) = client.set_nonblocking(true) {
-                    println!("Some Error with setting nonblocking");
-                }
-                // TODO remove by building the initial dom before?!?
-                if let Ok(text_msg) = serde_json::to_string(&league) {
-                    if client.send_message(&websocket::Message::text(text_msg)).is_err() {
-                        println!("Some Error with Websocket")
-                    }
-                }
-                clients.push(client);},
-            // unimportant error or handled http request
-            Err(Some(e)) => println!("{}",e),
-            Err(None) => (),
-        }
-
-        // handle receive from keyboard
-        some_msg = match receiver.try_recv() {
-            Ok(m) => Some(m),
-            Err(_) => None // no data or disconnect; latter should not be able to happen...
-        };
-
-        // handle receive from clients
-        // TODO [actually will be never done] make a _fair_ scheduling to prevent DOS
-        if some_msg.is_none() {
-            for client in &mut clients {
-                match ws::ws::handle_client(client) {
-                    Ok(Some(cmd)) => {
-                        some_msg = Some(cmd);
-                        break; },
-                    Err(e) => println!("{}",e),
-                    _ => (),
-                }
-                idx += 1;
-            }
-        }
-
-        let msg = match some_msg {
-            Some(m) => m,
-            None => {
-                std::thread::sleep(Duration::from_millis(10));
-                continue;
-            }
-        };
-
-        match msg {
-            Command::Modify(args) => match args {
-                LeagueCommand::AddGame(game) => {
-                    // TODO Move to a function
-                    if let Err(err) = league.add_game(&game) {
-                        println!("{}", err);
-                    }
-                    save(&opts.config, &league);
-                    for client in &mut clients {
-                        if let Ok(text_msg) = serde_json::to_string(&league) {
-                            if client.send_message(&websocket::Message::text(text_msg)).is_err() {
-                                println!("Some Error with Websocket")
-                            }
-                        }
-                    }
-                },
-                LeagueCommand::RemoveGames(game) => {
-                    if let Err(err) = league.remove_game(&game) {
-                        println!("{}", err);
-                    }
-                    save(&opts.config, &league);
-                    for client in &mut clients {
-                        if let Ok(text_msg) = serde_json::to_string(&league) {
-                            if client.send_message(&websocket::Message::text(text_msg)).is_err() {
-                                println!("Some Error with Websocket")
-                            }
-                        }
-                    }
-                },
-            },
-            Command::Serialize => {
-                save(&opts.config, &league);
-            },
-            Command::Quit => break,
-            Command::CloseClient => {clients.remove(idx); println!("Disconnected")},
-        };
-    }
-
-
- */
     /*
      TODO Better Web
        TODO gen TODOS...
