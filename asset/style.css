@@ -1,7 +1,8 @@
 #container {display:flex; flex-direction:column; height:100%; width:100%;}
         #output {width:100%}
 
-        #player {display:flex; flex-direction:column; width:400px;}
+        h2 {text-align:center;}
+        #player {display:flex; flex-direction:column; width:400px; margin:auto;}
 
         .row {display:flex; flex-direction:row;}
         .col1, .col3, .col4, .col5 {width: 50px;text-align:center;}
