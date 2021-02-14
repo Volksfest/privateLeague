@@ -16,7 +16,7 @@ function openContext(e) {
     if (confirm("Delete the games of the match '" +inner[0]+" vs. "+inner[2]+"'?")) {
         json = JSON.stringify({"RemoveGames":{
         "player1": inner[0],
-        "player2": inner[1],
+        "player2": inner[2],
         }});
 
         sendJson(json);
