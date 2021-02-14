@@ -13,7 +13,7 @@ matches.forEach(match => {
 
 function openContext(e) {
     var inner = this.innerText.split("\n");
-    if (confirm("Delete the games of the match '" +inner[0]+" vs. "+inner[1]+"'?")) {
+    if (confirm("Delete the games of the match '" +inner[0]+" vs. "+inner[2]+"'?")) {
         json = JSON.stringify({"RemoveGames":{
         "player1": inner[0],
         "player2": inner[1],
