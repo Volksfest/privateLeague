@@ -4,7 +4,7 @@ use super::game::Game;
 use super::game::Duration;
 use super::game::Race;
 
-use crate::parser::command::{AddGameArgs, RemoveGameArgs};
+use crate::com::command::{AddGameArgs, RemoveGameArgs};
 
 use serde::{Serialize, Deserialize};
 
