@@ -36,7 +36,7 @@ function openPopup(e) {
     popup.className="active";
     var inner = this.innerText.split("\n");
     document.getElementById("first_player_label").innerHTML= inner[0];
-    document.getElementById("second_player_label").innerHTML= inner[1];
+    document.getElementById("second_player_label").innerHTML= inner[2];
 }
 
 function hidePopup() {
