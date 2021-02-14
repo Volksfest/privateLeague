@@ -57,13 +57,7 @@ r#"<div id="match_{}" class="match_box {}">
     </div>
 </div>"#);
 
-    let str =  builder.string().unwrap();
-    println!("{}", str);
-
-    //builder.string().unwrap()
-    str
-
-
+    builder.string().unwrap()
 }
 
 fn create_header() -> String {
