@@ -90,10 +90,15 @@ function sendJson(json) {
 }
 
 function parseJson(json) {
-    // TODOOO
-    if (json.hasOwnProperty("AddGame")) {
-        console.log("Added Game");
-    } else if (json.hasOwnProperty("RemoveGames")) {
-        console.log("Removed Game");
+    if (json.hasOwnProperty("Update")) {
+        var elementBuilder = document.createElement("template");
+        elementBuilder.innerHTML = json.Update.dom.trim();
+        var newElement = elementBuilder.content.firstChild;
+        var oldElement = document.getElementById("match_" + json.Update.idx);
+
+        newElement.addEventListener("click", openPopup, true);
+        newElement.addEventListener("contextmenu", openContext);
+
+        oldElement.parentNode.replaceChild(newElement, oldElement);
     }
 }

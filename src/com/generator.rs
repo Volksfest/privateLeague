@@ -2,95 +2,162 @@ use std::cmp::Ordering;
 use chrono::prelude::*;
 
 use crate::league::league::League;
-use crate::league::matches::Match;
+use crate::com::tree::Tree;
 
-// TODO seriously, either find or write a HTML Generator....
+// TODO make the code more generetive and less repititive...
 
-// TODO change dependencies from Math, weird Vec to only League
-pub fn create_single_match(m : &Match, score : &Vec<(String, usize, usize)>, idx : usize) -> String {
-    let mut builder = string_builder::Builder::default();
+pub fn create_single_match(league: &League, idx : usize) -> Tree {
 
-    let winner = match m.winner() {
-        None => None,
-        Some(t) => Some(t == m.get_first_player())
-    };
+    let m = league.get_match(idx).unwrap();
 
-    builder.append(format!(
-r#"<div id="match_{}" class="match_box {}">
-    <div class="player_box">
-        <div class="name_box {}">{}</div>
-        <div class="space_box">vs</div>
-        <div class="name_box {}">{}</div>
-    </div>
-"#,
-        idx,
-        match winner {
-            None => if m.empty() {"unplayed"} else {"ongoing"},
-            Some(_) => "played"
-        },
-        match winner {
-            None => "normal_player",
-            Some(t) => if t {"winner"} else {"loser"}
-        }, score[m.get_first_player()].0,
-        match winner {
-            None => "normal_player",
-            Some(t) => if t {"loser"} else {"winner"}
-        }, score[m.get_second_player()].0
-    ));
+    let tree = Tree::new("div").insert_attribute("id",format!("match_{}", idx));
+
+    let tree = tree.insert_attribute("class",
+                          format!("match_box {}",
+                                    match m.winner() {
+                                        Some(_) => "played",
+                                        None =>
+                                            if m.empty() {
+                                                "unplayed"
+                                            } else {
+                                                "ongoing"
+                                            }
+                                    }));
+
+    let players = &league.players;
+
+    let tree = tree.insert_tree(
+        Tree::new("div")
+            .insert_attribute("class","player_box")
+            .insert_tree(
+                Tree::new("div")
+                    .insert_attribute("class", format!("name_box {}", "normal_player"))
+                    .insert_text(players[m.get_first_player()].get_name())
+            )
+            .insert_tree(Tree::new("div").insert_attribute("class","space_box").insert_text("vs"))
+            .insert_tree(
+                Tree::new("div")
+                    .insert_attribute("class", format!("name_box {}", "normal_player"))
+                    .insert_text(players[m.get_second_player()].get_name())
+            )
+    );
 
 
-    builder.append(r#"  <div class="games_box">"#);
+    let mut game_box = Tree::new("div").insert_attribute("class","games_box");
+
     if !m.empty() {
         let p1 = m.get_first_player_data();
         let p2 = m.get_second_player_data();
         let duration = m.get_durations();
         for (dur, ((p1_won, p1_race), (p2_won, p2_race))) in duration.iter().zip(p1.iter().zip(p2.iter())) {
-            builder.append(format!(r#"<div class="game_box"><div class="race_box {}">{}</div><div class="time_box">{:02}:{:02}</div><div class="race_box {}">{}</div></div>"#,
-                                   if *p1_won { "winner" } else { "loser" },
-                                   p1_race.race_to_char(),
-                                   dur.min, dur.sec,
-                                   if *p2_won { "winner" } else { "loser" },
-                                   p2_race.race_to_char()));
+            game_box = game_box.insert_tree(
+                Tree::new("div").insert_attribute("class","game_box")
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class",format!("race_box {}", if *p1_won{ "winner" } else { "loser" }))
+                            .insert_text(p1_race.race_to_char())
+                    )
+                    .insert_tree(
+                        Tree::new("div").insert_attribute("class","time_box")
+                            .insert_text(format!("{:02}:{:02}", dur.min, dur.sec))
+
+                    )
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class",format!("race_box {}", if *p2_won{ "winner" } else { "loser" }))
+                            .insert_text(p2_race.race_to_char())
+                    )
+            );
         }
     }
-    builder.append(r#"
-    </div>
-</div>"#);
 
-    builder.string().unwrap()
+    tree.insert_tree(game_box)
 }
 
-fn create_header() -> String {
-    String::from(r#"
-    <head>
-        <meta charset="UTF-8">
-        <title>StartCraft 2 Private League</title>
-        <link rel="stylesheet" href="resource/style.css" />
-    </head>
-    "#)
+fn create_matches(league : &League) -> Tree {
+
+    let mut all_matches = Tree::new("div").insert_attribute("id", "match");
+
+    let todays_week = Local::today().naive_local().iso_week().week();
+    let mpw = league.matches_per_week();
+
+    for w in 0..league.weeks_count() {
+        let begin_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Mon);
+        let end_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Sun);
+
+        let week = Tree::new("div").insert_attribute("class",
+            if league.start_week + w as u32 == todays_week {
+                "week highlighted"
+            } else {
+                "week"
+            }
+        );
+
+        let week = week.insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","date")
+                .insert_text(format!("{:02}.{:02}",
+                    begin_date.day(),
+                    begin_date.month()))
+                .insert_tree(Tree::new("br"))
+                .insert_text("-")
+                .insert_tree(Tree::new("br"))
+                .insert_text(format!("{:02}.{:02}",
+                    end_date.day(),
+                    end_date.month()))
+        );
+
+        let mut weekly_matches = Tree::new("div").insert_attribute("class", "week_matches");
+
+        for i in 0..mpw {
+            let match_index = w * mpw + i;
+
+            weekly_matches = weekly_matches.insert_tree(
+                create_single_match(league, match_index)
+            );
+        }
+        let week = week.insert_tree(weekly_matches);
+        all_matches = all_matches.insert_tree(week);
+    }
+
+    all_matches
 }
 
-fn create_table(score : &Vec<(String, usize, usize)>) -> String {
-    let mut builder = string_builder::Builder::default();
 
-    builder.append(r#"<div id="player">"#);
+fn create_table(league : &League) -> Tree {
 
-    builder.append("<div class=\"row\">
-        <div class=\"col1\">#</div>\
-        <div class=\"col2\">Name</div>\
-        <div class=\"col3\">Sp</div>\
-        <div class=\"col4\">S</div>\
-        <div class=\"col5\">N</div></div>");
+    let score = league.get_score();
 
-    let mut add_row = | num : usize , name : &String, win:usize, lose : usize, class : String| {
-        builder.append(format!(
-            "<div class=\"{}\">
-            <div class=\"col1\">{}</div>\
-            <div class=\"col2\">{}</div>\
-            <div class=\"col3\">{}</div>\
-            <div class=\"col4\">{}</div>\
-            <div class=\"col5\">{}</div></div>",class, num, name, win+lose, win, lose));
-    };
+    let mut player =
+        Tree::new("div").insert_attribute("id","player")
+            .insert_tree(
+                Tree::new("div").insert_attribute("class","row")
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class","col1")
+                            .insert_text("#")
+                    )
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class","col2")
+                            .insert_text("Name")
+                    )
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class","col3")
+                            .insert_text("Sp")
+                    )
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class","col4")
+                            .insert_text("S")
+                    )
+                    .insert_tree(
+                        Tree::new("div")
+                            .insert_attribute("class","col5")
+                            .insert_text("N")
+                    )
+            );
 
     let mut sorted_score = score.clone();
     sorted_score.sort_by(|a,b|
@@ -106,117 +173,189 @@ fn create_table(score : &Vec<(String, usize, usize)>) -> String {
         if i == 0 { class = "row winner_back" }
         if i == score.len() - 1 { class = "row loser_back" }
 
-        add_row(i+1, &r.0, r.1, r.2, String::from(class));
+        player = player.insert_tree(
+            Tree::new("div").insert_attribute("class",class)
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("class", "col1")
+                        .insert_text(i+1)
+                )
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("class", "col2")
+                        .insert_text(&r.0)
+                )
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("class", "col3")
+                        .insert_text(r.1 + r.2)
+                )
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("class", "col4")
+                        .insert_text(r.1)
+                )
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("class", "col5")
+                        .insert_text(r.2)
+                )
+        );
     }
 
-    builder.append("</div>");
-
-    builder.string().unwrap()
+    player
 }
 
-fn create_matches(league : &League, score : &Vec<(String, usize, usize)>) -> String {
-    let mut builder = string_builder::Builder::default();
-
-    builder.append(r#"<div id="match">"#);
-    let todays_week = Local::today().naive_local().iso_week().week();
-    let mpw = league.matches_per_week();
-    for w in 0..league.weeks_count() {
-        let begin_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Mon);
-        let end_date = NaiveDate::from_isoywd(Local::today().year(), league.start_week + w as u32, Weekday::Sun);
-        builder.append(format!(r#"<div class="week{}"><div class="date">{:02}.{:02}<br>-<br>{:02}.{:02}</div><div class="week_matches">"#,
-                               if league.start_week + w as u32== todays_week {" highlighted"} else {""},
-                               begin_date.day(), begin_date.month(),
-                               end_date.day(), end_date.month()
-        ));
-
-        for i in 0..mpw {
-            let match_index = w * mpw + i;
-            let m = league.get_match(match_index).unwrap();
-
-
-            builder.append(create_single_match(m, score, match_index));
-        }
-        builder.append("</div></div>");
-    }
-
-    builder.append("</div></div>");
-
-    builder.string().unwrap()
+fn create_content(league: &League) -> Tree {
+    Tree::new("div")
+        .insert_attribute("id","container")
+        .insert_tree(
+            Tree::new("h2")
+                .insert_text("StarCraft 2 Private League - Season 2")
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("id", "output")
+                .insert_tree(create_table(&league)) // Player
+                .insert_tree(create_matches(&league)) // Matches
+        )
 }
 
-fn create_content(league: &League) -> String {
-    let mut builder = string_builder::Builder::default();
-
-    builder.append(r#"
-    <div id="container">
-        <h2>StartCraft 2 Private League - Season 2</h2>
-
-        <div id="output">
-            "#);
-
-    // Player
-    let score = league.get_score();
-    builder.append(create_table(&score));
-
-    // Matches
-
-    builder.append(create_matches(&league, &score));
-
-
-    builder.append(r#"</div>"#);
-
-    builder.string().unwrap()
+fn create_popup() -> Tree {
+    Tree::new("div")
+        .insert_attribute("id", "popup")
+        .insert_attribute("class", "hidden")
+        .insert_tree(
+            Tree::new("datalist")
+                .insert_attribute("id", "race")
+                .insert_tree(Tree::new("option").insert_attribute("value","Terran"))
+                .insert_tree(Tree::new("option").insert_attribute("value","Zerg"))
+                .insert_tree(Tree::new("option").insert_attribute("value","Protoss"))
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","row")
+                .insert_tree(
+                    Tree::new("label")
+                        .insert_attribute("id","first_player_label")
+                        .insert_attribute("for", "first_player_race_input")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "first_player_race_input")
+                        .insert_attribute("name","first_player_race")
+                        .insert_attribute("list","race")
+                        .insert_attribute("onfocus","this.value=''")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "first_player_win_radio")
+                        .insert_attribute("name","first_player_won")
+                        .insert_attribute("type","radio")
+                        .insert_attribute("value","true")
+                        .insert_key("checked")
+                )
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","row")
+                .insert_tree(
+                    Tree::new("label")
+                        .insert_attribute("id","second_player_label")
+                        .insert_attribute("for", "second_player_race_input")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "second_player_race_input")
+                        .insert_attribute("name","second_player_race")
+                        .insert_attribute("list","race")
+                        .insert_attribute("onfocus","this.value=''")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "second_player_win_radio")
+                        .insert_attribute("name","first_player_won")
+                        .insert_attribute("type","radio")
+                        .insert_attribute("value","true")
+                )
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","row")
+                .insert_tree(
+                    Tree::new("label")
+                        .insert_attribute("id","duration")
+                        .insert_attribute("for", "duration_text")
+                        .insert_text("Spieldauer")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "duration_text")
+                        .insert_attribute("name","duration")
+                        .insert_attribute("type","text")
+                        .insert_attribute("value","0:00")
+                )
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","row")
+                .insert_tree(
+                    Tree::new("div")
+                        .insert_attribute("id","error_output")
+                )
+        )
+        .insert_tree(
+            Tree::new("div")
+                .insert_attribute("class","row")
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "submit")
+                        .insert_attribute("name","game_submit")
+                        .insert_attribute("type","button")
+                        .insert_attribute("value","Add")
+                        .insert_attribute("onclick","addGame()")
+                )
+                .insert_tree(
+                    Tree::new("input")
+                        .insert_attribute("id", "cancel")
+                        .insert_attribute("name","game_cancel")
+                        .insert_attribute("type","button")
+                        .insert_attribute("value","Cancel")
+                        .insert_attribute("onclick","hidePopup()")
+                )
+        )
 }
 
-fn create_popup() -> String {
-    String::from(r#"<div id="popup" class="hidden">
-        <datalist id="race">
-            <option value="Terran"></option>
-            <option value="Zerg"></option>
-            <option value="Protoss"></option>
-        </datalist>
+fn create_header() -> Tree {
+    Tree::new("head")
+        .insert_tree(
+        Tree::new("meta")
+            .insert_attribute("charset", "UTF-8"))
 
-        <div class="row">
-            <label id="first_player_label" for="first_player_race_input"></label>
-            <input id="first_player_race_input" name="first_player_race" list="race" onfocus="this.value=''"/>
-            <input type="radio" id="first_player_win_radio" name="first_player_won" value="true" checked />
-        </div>
-        <div class="row">
-            <label id="second_player_label" for="second_player_race_input"></label>
-            <input id="second_player_race_input" name="second_player_race" list="race" onfocus="this.value=''"/>
-            <input type="radio" id="second_player_win_radio" name="first_player_won" value="false" />
-        </div>
-        <div class="row">
-            <label id="duration_label" for="duration_text">Spieldauer</label>
-            <input type="text" id="duration_text" name="duration" value="0:00" />
-        </div>
-        <div class="row">
-            <div id="error_output"></div>
-        </div>
-        <div class="row">
-            <input type="button" id="submit" name="game_submit" value="Add" style="margin-right:5px" onclick="addGame()"/>
-            <input type="button" id="cancel" name="game_cancel" value="Cancel" onclick="hidePopup()"/>
-        </div>
-    </div>
-    "#)
+        .insert_tree(
+        Tree::new("title")
+            .insert_text("StarCraft 2 Private League"))
+
+        .insert_tree(
+        Tree::new("link")
+            .insert_attribute("rel", "stylesheet")
+            .insert_attribute("href", "resource/style.css")
+    )
 }
 
 pub fn create_html(league : &League) -> String {
-    let mut builder = string_builder::Builder::default();
 
+    let html = Tree::new("html");
 
-    builder.append(create_header());
-
-    builder.append("<body>");
-
-    builder.append(create_content(&league));
-
-    builder.append(create_popup());
-
-    builder.append(r#"
-            <script src="/resource/script.js"></script>
-        </body>"#);
-
-
-    builder.string().unwrap()
+    html.insert_tree(create_header())
+        .insert_tree(
+        Tree::new("body")
+            .insert_tree(create_content(&league))
+            .insert_tree(create_popup())
+            .insert_tree(
+                Tree::new("script")
+                    .insert_attribute("src", "/resource/script.js")
+            )
+        )
+        .print()
 }

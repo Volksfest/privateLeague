@@ -118,7 +118,7 @@ impl League {
     }
 
     // bool is for inverting player one and player two
-    fn get_match_idx(&self, player1 : &String, player2 : &String) -> Option<(usize, bool)> {
+    pub fn get_match_idx(&self, player1 : &String, player2 : &String) -> Option<(usize, bool)> {
         let p1_idx = self.get_player_idx(player1)?;
         let p2_idx = self.get_player_idx(player2)?;
 

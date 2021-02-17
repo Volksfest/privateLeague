@@ -2,7 +2,7 @@ mod league;
 mod com;
 
 use crate::league::league::League;
-use crate::com::command::LeagueCommand;
+use crate::com::command::{LeagueCommand, Respond, UpdateArgs};
 
 use actix_files as fs;
 
@@ -14,49 +14,93 @@ use std::sync::Mutex;
 use std::sync::Arc;
 
 use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
+use crate::com::generator::create_single_match;
+
+struct Context {
+    path : String,
+    league : League,
+    stack : Vec<LeagueCommand>,
+}
 
 #[get("/")]
-async fn single(data: web::Data<Arc<Mutex<(String,League)>>>) -> impl Responder {
+async fn single(data: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
     let g = data.lock().unwrap();
     HttpResponse::Ok()
-        .body(com::generator::create_html(&g.1))
+        .body(com::generator::create_html(&g.league))
+}
+
+fn process<A, F>(league: &mut League, path : &String, args: A, f: F) -> HttpResponse
+where F: Fn(&mut League, A) -> Result<Option<usize>, String> {
+
+    let resp = match f(league, args) {
+        Ok(Some(idx)) =>
+            HttpResponse::Ok().body(
+                serde_json::to_string(&Respond::Update(UpdateArgs{idx, dom: create_single_match(league, idx).print()})).unwrap()
+            ),
+        Ok(None) =>
+            HttpResponse::Ok().body(
+                serde_json::to_string(&Respond::Message("Ok".to_string())).unwrap()
+            ),
+        Err(e) => {
+            println!("{}", e);
+            return HttpResponse::BadRequest().body(
+                serde_json::to_string(&Respond::Error(e)).unwrap()
+            )
+        }
+    };
+    save(path, league);
+
+    resp
+
 }
 
 #[post("/api")]
-async fn api(ctx : web::Data<Arc<Mutex<(String,League)>>>, payload : web::Json<LeagueCommand>) -> impl Responder {
+async fn api(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<LeagueCommand>) -> impl Responder {
     println!("Got API call ({:?})", payload);
 
     let mut g = match ctx.lock() {
         Ok(g) => g,
         _ => return HttpResponse::BadGateway().body("{\"Message\":\"Failed\"}")
     };
-    let path = g.0.clone();
+    let path = g.path.clone();
 
-    let league = &mut g.1;
+    let league = &mut g.league;
 
-    // TODO beautify
-
-    let resp = serde_json::to_string(&payload.0).unwrap();
+    /*
+    let idx = league.get_match_idx()
+    let resp = serde_json::to_string(
+        Respond::Update(
+            UpdateArgs{idx, dom: create_single_match(&league, 1).print()}
+        )
+    ).unwrap();
+    */
 
     match payload.0
     {
-        LeagueCommand::AddGame(game) => {
-            // TODO Move to a function
-            if let Err(err) = league.add_game(&game) {
-                println!("{}", err);
-            }
-            save(&path, &league);
-        }
-        LeagueCommand::RemoveGames(game) => {
-            if let Err(err) = league.remove_game(&game) {
-                println!("{}", err);
-            }
-            save(&path, &league);
-        }
-    }
+        LeagueCommand::AddGame(game) =>
 
-    HttpResponse::Ok()
-        .body(resp)
+            process(league, &path, game,
+                    |league : &mut League, game| -> Result<Option<usize>, String> {
+                        let idx = league.get_match_idx(&game.player1.0, &game.player2.0);
+                        if idx.is_none() {
+                            return Err("Match does not exist".to_string());
+                        }
+
+                        league.add_game(&game)?;
+                        Ok(Some(idx.unwrap().0))
+                    }),
+        LeagueCommand::RemoveGames(game) =>
+            process(league, &path, game,
+                |league : &mut League, game| -> Result<Option<usize>, String> {
+                    let idx = league.get_match_idx(&game.player1, &game.player2);
+                    if idx.is_none() {
+                        return Err("Match does not exist".to_string());
+                    }
+
+                    league.remove_game(&game)?;
+                    Ok(Some(idx.unwrap().0))
+                })
+    }
 }
 
 #[derive(Clap)]
@@ -114,12 +158,18 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(1);
     }
 
+    let context = Context{
+        path,
+        league,
+        stack:Vec::new()
+    };
+
     // Create league context
-    let shared_league = Arc::new(Mutex::new((path,league)));
+    let shared_context = Arc::new(Mutex::new(context));
 
     HttpServer::new(move ||
         App::new()
-            .data(shared_league.clone())
+            .data(shared_context.clone())
             .service(single)
             .service(api)
             .service(fs::Files::new("/resource", "./asset").show_files_listing())

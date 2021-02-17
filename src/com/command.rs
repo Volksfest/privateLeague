@@ -22,3 +22,16 @@ pub enum LeagueCommand {
     // TODO Do Statistics
     // TODO Do Debug
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateArgs {
+    pub idx : usize,
+    pub dom : String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Respond {
+    Update(UpdateArgs),
+    Message(String),
+    Error(String)
+}
