@@ -2,7 +2,7 @@ mod league;
 mod com;
 
 use crate::league::league::League;
-use crate::com::command::{LeagueCommand, Respond, UpdateArgs};
+use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs};
 
 use actix_files as fs;
 
@@ -14,7 +14,9 @@ use std::sync::Mutex;
 use std::sync::Arc;
 
 use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
-use crate::com::generator::create_single_match;
+use crate::com::generator::{create_single_match, create_table};
+use crate::com::command::Respond::{Update, Error};
+use serde::Serialize;
 
 struct Context {
     path : String,
@@ -29,78 +31,87 @@ async fn single(data: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
         .body(com::generator::create_html(&g.league))
 }
 
-fn process<A, F>(league: &mut League, path : &String, args: A, f: F) -> HttpResponse
-where F: Fn(&mut League, A) -> Result<Option<usize>, String> {
+#[get("/get_token")]
+async fn get_token(ctx : web::Data<Arc<Mutex<Context>>>) -> impl Responder {
+    let g = ctx.lock().unwrap();
+    HttpResponse::Ok()
+        .body(serde_json::to_string(&Respond::Token(
+            g.stack.len()
+        )).unwrap())
+}
 
-    let resp = match f(league, args) {
-        Ok(Some(idx)) =>
-            HttpResponse::Ok().body(
-                serde_json::to_string(&Respond::Update(UpdateArgs{idx, dom: create_single_match(league, idx).print()})).unwrap()
-            ),
-        Ok(None) =>
-            HttpResponse::Ok().body(
-                serde_json::to_string(&Respond::Message("Ok".to_string())).unwrap()
-            ),
-        Err(e) => {
-            println!("{}", e);
-            return HttpResponse::BadRequest().body(
-                serde_json::to_string(&Respond::Error(e)).unwrap()
-            )
-        }
+fn create_response<T: Serialize>(payload : T) -> HttpResponse {
+    HttpResponse::Ok().json(payload)
+}
+
+fn create_diff_update(ctx : &Context, token: usize, updated : bool) -> Respond {
+    let mut update = UpdateArgs{
+        matches: Vec::new(),
+        table_dom: create_table(&ctx.league).print(),
+        processed: updated
     };
-    save(path, league);
 
-    resp
+    for cmd in ctx.stack.split_at(token).1 {
+        let idx = match cmd {
+            LeagueCommand::AddGame(game) => ctx.league.get_match_idx(&game.player1.0, &game.player2.0),
+            LeagueCommand::RemoveGames(game) => ctx.league.get_match_idx(&game.player1, &game.player2)
+        };
 
+        if idx.is_none() {
+            continue;
+        }
+        let idx = idx.unwrap().0;
+
+        let new_match = UpdateMatchArgs {
+            idx,
+            dom: create_single_match(&ctx.league, idx).print()
+        };
+
+        update.matches.push(new_match);
+    }
+
+    Update(update)
 }
 
 #[post("/api")]
-async fn api(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<LeagueCommand>) -> impl Responder {
+async fn api(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::command::Request>) -> impl Responder {
     println!("Got API call ({:?})", payload);
 
     let mut g = match ctx.lock() {
         Ok(g) => g,
-        _ => return HttpResponse::BadGateway().body("{\"Message\":\"Failed\"}")
+        _ => {return HttpResponse::BadGateway().finish();}
     };
+
+    if payload.token != g.stack.len() {
+        return create_response(create_diff_update(&*g, payload.token,false));
+    }
+
     let path = g.path.clone();
 
     let league = &mut g.league;
 
-    /*
-    let idx = league.get_match_idx()
-    let resp = serde_json::to_string(
-        Respond::Update(
-            UpdateArgs{idx, dom: create_single_match(&league, 1).print()}
-        )
-    ).unwrap();
-    */
-
-    match payload.0
+    let update = match &payload.cmd
     {
-        LeagueCommand::AddGame(game) =>
+        LeagueCommand::AddGame(game) => {
+            league.add_game(&game)
+        }
+        LeagueCommand::RemoveGames(game) =>{
+            league.remove_game(&game)
+        }
+    };
 
-            process(league, &path, game,
-                    |league : &mut League, game| -> Result<Option<usize>, String> {
-                        let idx = league.get_match_idx(&game.player1.0, &game.player2.0);
-                        if idx.is_none() {
-                            return Err("Match does not exist".to_string());
-                        }
-
-                        league.add_game(&game)?;
-                        Ok(Some(idx.unwrap().0))
-                    }),
-        LeagueCommand::RemoveGames(game) =>
-            process(league, &path, game,
-                |league : &mut League, game| -> Result<Option<usize>, String> {
-                    let idx = league.get_match_idx(&game.player1, &game.player2);
-                    if idx.is_none() {
-                        return Err("Match does not exist".to_string());
-                    }
-
-                    league.remove_game(&game)?;
-                    Ok(Some(idx.unwrap().0))
-                })
+    match update {
+        Ok(_) => {
+            save(&path, &g.league);
+            g.stack.push(payload.cmd.clone());
+            create_response(create_diff_update(&*g, payload.token, true))
+        },
+        Err(e) => {
+            println!("{}", e);
+            create_response(Error(e))
+        }
     }
+
 }
 
 #[derive(Clap)]
@@ -172,6 +183,7 @@ async fn main() -> std::io::Result<()> {
             .data(shared_context.clone())
             .service(single)
             .service(api)
+            .service(get_token)
             .service(fs::Files::new("/resource", "./asset").show_files_listing())
     )
         .bind(opts.host)?

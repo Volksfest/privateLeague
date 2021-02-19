@@ -11,15 +11,20 @@ matches.forEach(match => {
     match.addEventListener("contextmenu", openContext);
 });
 
+var token = 0;
+update_token();
+
+window.setInterval(() => console.log(token), 3000);
+
 function openContext(e) {
     var inner = this.innerText.split("\n");
     if (confirm("Delete the games of the match '" +inner[0]+" vs. "+inner[2]+"'?")) {
-        json = JSON.stringify({"RemoveGames":{
+        obj = {"RemoveGames":{
         "player1": inner[0],
         "player2": inner[2],
-        }});
+        }};
 
-        sendJson(json);
+        sendJson(obj);
     }
     e.preventDefault();
     return false;
@@ -65,21 +70,25 @@ function addGame() {
         return;
     }
 
-    json = JSON.stringify({"AddGame":{
-        "first_player_win": document.querySelector('input[name="first_player_won"]:checked').value == "true",
+    obj = {"AddGame":{
+        "first_player_win": document.getElementById("first_player_win_radio").checked,
         "player1": [document.getElementById("first_player_label").innerText,
                     race1.charAt(0).toLowerCase()],
         "player2": [document.getElementById("second_player_label").innerText,
                     race2.charAt(0).toLowerCase()],
         "duration_min" : parseInt(match[1]),
         "duration_sec" : parseInt(match[2])
-    }});
+    }};
 
     hidePopup();
-    sendJson(json);
+    sendJson(obj);
 }
 
-function sendJson(json) {
+function sendJson(obj) {
+    var sendObj = {cmd: obj, token: token};
+
+    var json = JSON.stringify(sendObj);
+
     fetch("/api", {
             method:'POST',
             headers: {'Content-Type': 'application/json'},
@@ -90,15 +99,33 @@ function sendJson(json) {
 }
 
 function parseJson(json) {
-    if (json.hasOwnProperty("Update")) {
-        var elementBuilder = document.createElement("template");
-        elementBuilder.innerHTML = json.Update.dom.trim();
-        var newElement = elementBuilder.content.firstChild;
-        var oldElement = document.getElementById("match_" + json.Update.idx);
+    update_token();
 
-        newElement.addEventListener("click", openPopup, true);
-        newElement.addEventListener("contextmenu", openContext);
+    if (json.hasOwnProperty("Update")) {
+        json.Update.matches.forEach(element => {
+            replace_div("match_" + element.idx, element.dom, true);
+        });
+        replace_div("player", json.Update.table_dom, false);
+        console.log(json.Update.processed)
+    }
+}
+
+function replace_div(id, div, addListener) {
+        var elementBuilder = document.createElement("template");
+        elementBuilder.innerHTML = div.trim();
+        var newElement = elementBuilder.content.firstChild;
+        var oldElement = document.getElementById(id);
+
+        if (addListener) {
+            newElement.addEventListener("click", openPopup, true);
+            newElement.addEventListener("contextmenu", openContext);
+        }
 
         oldElement.parentNode.replaceChild(newElement, oldElement);
-    }
+}
+
+function update_token() {
+    fetch("/get_token")
+    .then(response => response.json())
+    .then(json => { token = json.Token } );
 }

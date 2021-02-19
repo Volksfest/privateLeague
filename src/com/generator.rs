@@ -124,7 +124,7 @@ fn create_matches(league : &League) -> Tree {
 }
 
 
-fn create_table(league : &League) -> Tree {
+pub fn create_table(league : &League) -> Tree {
 
     let score = league.get_score();
 
