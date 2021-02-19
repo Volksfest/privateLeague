@@ -59,6 +59,5 @@ pub struct UpdateArgs {
 pub enum Respond {
     Update(UpdateArgs),
     Error(String),
-    Token(usize),
-    Nothing
+    Token(usize)
 }
