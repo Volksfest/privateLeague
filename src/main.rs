@@ -44,33 +44,33 @@ fn create_response<T: Serialize>(payload : T) -> HttpResponse {
     HttpResponse::Ok().json(payload)
 }
 
-fn create_diff_update(ctx : &Context, token: usize, updated : bool) -> Respond {
+fn create_diff_update(ctx : &Context, token: usize, updated : bool) -> Option<Respond> {
+    if token >= ctx.stack.len() || ctx.stack.len() == 0 {
+        return None;
+    }
+
     let mut update = UpdateArgs{
         matches: Vec::new(),
         table_dom: create_table(&ctx.league).print(),
         processed: updated
     };
 
+    let mut idx_list = Vec::new();
+
     for cmd in ctx.stack.split_at(token).1 {
-        let idx = match cmd {
-            LeagueCommand::AddGame(game) => ctx.league.get_match_idx(&game.player1.0, &game.player2.0),
-            LeagueCommand::RemoveGames(game) => ctx.league.get_match_idx(&game.player1, &game.player2)
-        };
-
-        if idx.is_none() {
-            continue;
+        match cmd.get_match_idx(&ctx.league) {
+            None => continue,
+            Some(idx) => if !idx_list.contains(&idx) {
+                update.matches.push(UpdateMatchArgs {
+                    idx,
+                    dom: create_single_match(&ctx.league, idx).print(),
+                });
+                idx_list.push(idx);
+            }
         }
-        let idx = idx.unwrap().0;
-
-        let new_match = UpdateMatchArgs {
-            idx,
-            dom: create_single_match(&ctx.league, idx).print()
-        };
-
-        update.matches.push(new_match);
     }
 
-    Update(update)
+    Some(Update(update))
 }
 
 #[post("/api")]
