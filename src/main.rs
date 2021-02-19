@@ -159,8 +159,10 @@ async fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
     } else {
-        League::new(&opts.players.unwrap(),
-                    Local::today().naive_local().iso_week().week())
+        let new_league = League::new(&opts.players.unwrap(),
+                    Local::today().naive_local().iso_week().week());
+        save(&path, &new_league);
+        new_league
     };
 
     // Check for correct input file

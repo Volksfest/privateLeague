@@ -4,10 +4,18 @@ Learning Rust by making a private league management software.
 
 It has shitty naming, shitty design but well, it gets to something... 
 
-# MVP reached
+# features
 
-Finally, this got the MVP status. 
-- Everything is serialized in JSON after each action (to prevent data loss after a crash).
-- Games can be added and if mistakes were made all games of a match can be cleared (get rekt, if you made the mistake in the third game. have fun to write each of the three games again...)
-- races can be given
-- game duration can be given
+- server/client web architecture
+- check for consistency with multiple clients at the same time
+- generate a league
+- add games to a match
+- remove all games from a match
+- calculate leaderboard
+
+# generation
+
+The league generates a league "config" file (first positional argument) if the specified file does not exist.
+For the generation, a valid list of player names has to be given (everything after --players).
+
+The binded host address (default is localhost:8080) can be specified with --host
