@@ -70,14 +70,22 @@ function addGame() {
         return;
     }
 
+    var min = match[1];
+    var sec = match[2];
+
+    if (min == 0 && sec == 0) {
+        error.innerHTML = "Spieldauer...";
+        return;
+    }
+
     obj = {"AddGame":{
         "first_player_win": document.getElementById("first_player_win_radio").checked,
         "player1": [document.getElementById("first_player_label").innerText,
                     race1.charAt(0).toLowerCase()],
         "player2": [document.getElementById("second_player_label").innerText,
                     race2.charAt(0).toLowerCase()],
-        "duration_min" : parseInt(match[1]),
-        "duration_sec" : parseInt(match[2])
+        "duration_min" : parseInt(min),
+        "duration_sec" : parseInt(sec)
     }};
 
     hidePopup();
