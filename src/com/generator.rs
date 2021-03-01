@@ -329,18 +329,29 @@ fn create_popup() -> Tree {
 fn create_header() -> Tree {
     Tree::new("head")
         .insert_tree(
-        Tree::new("meta")
-            .insert_attribute("charset", "UTF-8"))
+            Tree::new("meta")
+                .insert_attribute("charset", "UTF-8"))
 
         .insert_tree(
-        Tree::new("title")
-            .insert_text("StarCraft 2 Private League"))
+            Tree::new("link")
+        )
 
         .insert_tree(
-        Tree::new("link")
-            .insert_attribute("rel", "stylesheet")
-            .insert_attribute("href", "resource/style.css")
-    )
+            Tree::new("title")
+                .insert_text("StarCraft 2 Private League"))
+
+        .insert_tree(
+            Tree::new("link")
+                .insert_attribute("rel", "stylesheet")
+                .insert_attribute("href", "resource/style.css")
+        )
+
+        .insert_tree(
+            Tree::new("link")
+                .insert_attribute("rel", "icon")
+                .insert_attribute("href", "resource/favicon.ico")
+                .insert_attribute("type", "image/x-icon")
+        )
 }
 
 pub fn create_html(league : &League) -> String {
