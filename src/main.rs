@@ -186,7 +186,7 @@ async fn main() -> std::io::Result<()> {
             .service(single)
             .service(api)
             .service(get_token)
-            .service(fs::Files::new("/resource", "./asset").show_files_listing())
+            .service(fs::Files::new("/resource", "./asset"))
     )
         .bind(opts.host)?
         .run()
