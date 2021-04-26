@@ -121,6 +121,8 @@ struct Opts{
     config: String,
     #[clap(long)]
     players: Option<Vec<String>>,
+    #[clap(long)]
+    kick: Option<Vec<String>>,
     #[clap(long, default_value = "127.0.0.1:8080")]
     host:String,
 }
@@ -170,6 +172,17 @@ async fn main() -> std::io::Result<()> {
         println!("Config file has a broken state!");
         std::process::exit(1);
     }
+
+    let league = match opts.kick {
+        None => league,
+        Some(banned) => {
+            let mut new_path =opts.config.clone();
+            new_path.push_str(".before_purge");
+            save(&new_path, &league);
+            league.kick(banned)
+        }
+    };
+
 
     let context = Context{
         path,

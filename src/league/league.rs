@@ -4,7 +4,7 @@ use super::game::Game;
 use super::game::Duration;
 use super::game::Race;
 
-use crate::com::command::{AddGameArgs, RemoveGameArgs};
+use crate::com::command::{AddGameArgs, RemoveGameArgs, LeagueCommand};
 
 use serde::{Serialize, Deserialize};
 
@@ -199,6 +199,37 @@ impl League {
         }
 
         score
+    }
+
+    pub fn migrate_match(&mut self, mig : Vec<Game>, names : (&String, &String)) -> bool {
+        let switched = (names.1,names.0);
+        let mut idx = None;
+        for (i, m) in self.matches.iter().enumerate() {
+            let mn = (&self.players[m.players.0].name, &self.players[m.players.1].name);
+            if mn == names || mn == switched {
+                idx = Some(i);
+                break;
+            }
+        }
+        match idx{
+            None => {return false;}
+            Some(i) => {
+                self.matches[i].games = mig;
+                true
+            }
+        }
+    }
+
+    pub fn kick(self, to_kick : Vec<String>) -> League {
+        let names = self.players.iter().filter(|&x| !to_kick.contains(&x.name) ).map(|x| x.name.clone()).collect::<Vec<String>>();
+        let mut new_league = League::new(&names, self.start_week);
+
+        for i in self.matches {
+            let (a,b) = i.players;
+            new_league.migrate_match(i.games, (&self.players[a].name, &self.players[b].name));
+        }
+
+        new_league
     }
 
     #[allow(dead_code)]
