@@ -206,15 +206,24 @@ impl League {
         let mut idx = None;
         for (i, m) in self.matches.iter().enumerate() {
             let mn = (&self.players[m.players.0].name, &self.players[m.players.1].name);
-            if mn == names || mn == switched {
-                idx = Some(i);
+            if mn == names {
+                idx = Some((i, false));
+                break;
+            }
+
+            if mn == switched {
+                idx = Some((i, true));
                 break;
             }
         }
         match idx{
             None => {return false;}
-            Some(i) => {
+            Some((i,switch)) => {
                 self.matches[i].games = mig;
+                if switch {
+                    let p = self.matches[i].players;
+                    self.matches[i].players = (p.1,p.0);
+                }
                 true
             }
         }
