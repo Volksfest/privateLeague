@@ -23,6 +23,7 @@ use std::io::Write;
 use serde::Serialize;
 
 struct Context {
+    secret : String,
     path : String,
     league : League,
     stack : Vec<LeagueCommand>,
@@ -189,10 +190,13 @@ async fn main() -> std::io::Result<()> {
 
 
     let context = Context{
+        secret:Uuid::new_v4().to_simple().to_string(),
         path,
         league,
         stack:Vec::new()
     };
+
+    println!("{}", context.secret);
 
     // Create league context
     let shared_context = Arc::new(Mutex::new(context));
