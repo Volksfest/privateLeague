@@ -2,7 +2,7 @@ mod league;
 mod com;
 
 use crate::league::league::League;
-use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs};
+use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs};
 use crate::com::generator::{create_single_match, create_table};
 
 use clap::Clap;
@@ -110,6 +110,23 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
     Ok(HttpResponse::Ok().into())
 }
 
+#[get("/remove/{secret}/{player_1}/{player_2}")]
+async fn remove((path,player1, player2): web::Path<String>, ctx: web::Data<Arc<Mutex<Context>>>) -> Result<HttpResponse, Error> {
+    let g = ctx.lock().unwrap();
+
+    if g.secret != *path {
+        return Ok(HttpResponse::Forbidden().into());
+    }
+
+    let args = RemoveGameArgs{player1,player2};
+
+    g.league.remove_game(&args);
+    let cmd = LeagueCommand::RemoveGames(args);
+    g.stack.push(cmd);
+
+    Ok(HttpResponse::Ok().into())
+}
+
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Volksfest")]
 struct Opts{
@@ -199,6 +216,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_token)
             .service(update)
             .service(upload)
+            .service(remove)
             .service(fs::Files::new("/resource", "./asset"))
     )
         .bind(opts.host)?
