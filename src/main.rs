@@ -54,7 +54,7 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
     };
 
     if payload.token >= g.stack.len() || g.stack.len() == 0 {
-        return HttpResponse::Ok();
+        return HttpResponse::Ok().finish();
     }
 
     let mut update_list = UpdateArgs{
@@ -111,20 +111,29 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
 }
 
 #[get("/remove/{secret}/{player_1}/{player_2}")]
-async fn remove((path,player1, player2): web::Path<String>, ctx: web::Data<Arc<Mutex<Context>>>) -> Result<HttpResponse, Error> {
-    let g = ctx.lock().unwrap();
+async fn remove(path: web::Path<(String,String,String)>, ctx: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
+    let mut g = ctx.lock().unwrap();
 
-    if g.secret != *path {
-        return Ok(HttpResponse::Forbidden().into());
+    let path = path.into_inner();
+
+    if g.secret != path.0 {
+        return HttpResponse::Forbidden().finish();
     }
 
-    let args = RemoveGameArgs{player1,player2};
+    let args = RemoveGameArgs{player1:path.1, player2:path.2};
 
-    g.league.remove_game(&args);
-    let cmd = LeagueCommand::RemoveGames(args);
-    g.stack.push(cmd);
+    match g.league.remove_game(&args) {
+        Ok(_) => {
+            save(&g.path, &g.league);
+            let cmd = LeagueCommand::RemoveGames(args);
+            g.stack.push(cmd);
+        }
+        Err(e) => {
+            return HttpResponse::Ok().json(Respond::Error(e));
+        }
+    }
 
-    Ok(HttpResponse::Ok().into())
+    HttpResponse::Ok().finish()
 }
 
 #[derive(Clap)]
