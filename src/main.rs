@@ -3,19 +3,23 @@ mod com;
 
 use crate::league::league::League;
 use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs};
-
-use actix_files as fs;
+use crate::com::generator::{create_single_match, create_table};
 
 use clap::Clap;
 use std::path::Path;
 use chrono::prelude::*;
 
+use uuid::Uuid;
+
 use std::sync::Mutex;
 use std::sync::Arc;
 
-use actix_web::{get, post, web, App, HttpServer, Responder, HttpResponse};
-use crate::com::generator::{create_single_match, create_table};
-use crate::com::command::Respond::{Update, Error};
+use actix_web::{get, post, web, App, HttpServer, Error, Responder, HttpResponse};
+use actix_files as fs;
+use actix_multipart::Multipart;
+
+use futures::{StreamExt, TryStreamExt};
+use std::io::Write;
 use serde::Serialize;
 
 struct Context {
@@ -70,7 +74,7 @@ fn create_diff_update(ctx : &Context, token: usize, updated : bool) -> Option<Re
         }
     }
 
-    Some(Update(update))
+    Some(Respond::Update(update))
 }
 
 #[post("/api")]
@@ -108,7 +112,7 @@ async fn api(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::comm
         },
         Err(e) => {
             println!("{}", e);
-            create_response(Error(e))
+            create_response(Respond::Error(e))
         }
     }
 
