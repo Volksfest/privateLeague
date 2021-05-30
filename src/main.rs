@@ -2,7 +2,8 @@ mod league;
 mod com;
 
 use crate::league::league::League;
-use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs};
+use crate::league::game::SerGame;
+use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs, AddGameArgs};
 use crate::com::generator::{create_single_match, create_table};
 
 use clap::Clap;
@@ -21,6 +22,7 @@ use actix_multipart::Multipart;
 use futures::{StreamExt, TryStreamExt};
 use std::io::Write;
 use serde::Serialize;
+use std::process::Command;
 
 struct Context {
     secret : String,
@@ -84,16 +86,18 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
 #[post("/upload/{secret}")]
 async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<Arc<Mutex<Context>>>) -> Result<HttpResponse, Error> {
 
-    let g = ctx.lock().unwrap();
+    let mut g = ctx.lock().unwrap();
     if g.secret != path.into_inner() {
         return Ok(HttpResponse::Forbidden().into());
     }
 
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_type = field.content_disposition().unwrap();
-        let filename = content_type.get_filename().unwrap();
-        let filepath = format!("./tmp/{}", sanitize_filename::sanitize(&filename));
+        //let content_type = field.content_disposition().unwrap();
+        //let filename = content_type.get_filename().unwrap();
+        //let filepath = format!("./tmp/{}", sanitize_filename::sanitize(&filename));
+        let filepath = format!("./tmp/{}", Uuid::new_v4().to_simple().to_string());
+        let cloned_path = filepath.clone();
 
         // File::create is blocking operation, use threadpool
         let mut f = web::block(|| std::fs::File::create(filepath))
@@ -106,9 +110,37 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
             // filesystem operations are blocking, we have to use threadpool
             f = web::block(move || f.write_all(&data).map(|_| f)).await?;
         }
+
+        let output =  web::block(|| Command::new("./parser.py")
+            .arg(cloned_path)
+            .output()).await.unwrap();
+        let output = String::from_utf8(output.stdout).unwrap();
+        let game : SerGame = serde_json::from_str(output.as_str()).unwrap();
+
+
+        let args = AddGameArgs {
+            first_player_win : game.players[0].win,
+            player1: (game.players[0].name.clone(), game.players[0].race.race_to_char()),
+            player2: (game.players[1].name.clone(), game.players[1].race.race_to_char()),
+            duration_min : game.duration.min,
+            duration_sec : game.duration.sec,
+        };
+
+        match g.league.add_game(&args) {
+            Ok(_) => {
+                save(&g.path, &g.league);
+                let cmd = LeagueCommand::AddGame(args);
+                g.stack.push(cmd);
+            }
+            Err(e) => {
+                return Ok(HttpResponse::Ok().json(Respond::Error(e)));
+            }
+        }
+
     }
     Ok(HttpResponse::Ok().into())
 }
+
 
 #[get("/remove/{secret}/{player_1}/{player_2}")]
 async fn remove(path: web::Path<(String,String,String)>, ctx: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
