@@ -53,7 +53,7 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
         _ => {return HttpResponse::BadGateway().finish();}
     };
 
-    if payload.token >= g.stack.len() || g.stack.len() == 0 {
+    if payload.token == g.stack.len() {
         return HttpResponse::Ok().finish();
     }
 
@@ -85,7 +85,7 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
 async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<Arc<Mutex<Context>>>) -> Result<HttpResponse, Error> {
 
     let g = ctx.lock().unwrap();
-    if g.secret != *path {
+    if g.secret != path.into_inner() {
         return Ok(HttpResponse::Forbidden().into());
     }
 
