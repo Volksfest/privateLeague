@@ -20,7 +20,7 @@ impl Match {
         for i in 0..3 {
             match self.games.get(i) {
                 None => break,
-                Some(s) => match s.first_player_won {
+                Some(s) => match s.players[0].win {
                     true => a += 1,
                     false => b += 1
                 }
@@ -43,7 +43,8 @@ impl Match {
     pub fn get_first_player_data(&self) -> Vec<(bool, Race)> {
         let mut stats = Vec::new();
         for g in &self.games {
-            stats.push((g.first_player_won, g.races.0.clone()));
+            let player = &g.players[0];
+            stats.push((player.win, player.race.clone()));
         }
 
         stats
@@ -56,7 +57,8 @@ impl Match {
     pub fn get_second_player_data(&self) -> Vec<(bool, Race)> {
         let mut stats = Vec::new();
         for g in &self.games {
-            stats.push((!g.first_player_won, g.races.1.clone()));
+            let player = &g.players[1];
+            stats.push((player.win, player.race.clone()));
         }
 
         stats

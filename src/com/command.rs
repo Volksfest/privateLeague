@@ -1,14 +1,6 @@
 use serde::{Serialize, Deserialize};
 use crate::league::league::League;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AddGameArgs {
-    pub first_player_win : bool,
-    pub player1: (String, char),
-    pub player2: (String, char),
-    pub duration_min : usize,
-    pub duration_sec : usize,
-}
+use crate::league::game::Game;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RemoveGameArgs{
@@ -24,7 +16,7 @@ pub struct Request {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LeagueCommand {
-    AddGame(AddGameArgs),
+    AddGame(Game),
     RemoveGames(RemoveGameArgs)
     // TODO Do Statistics
     // TODO Do Debug
@@ -33,7 +25,7 @@ pub enum LeagueCommand {
 impl LeagueCommand {
     pub fn get_match_idx(&self, league: &League) -> Option<usize> {
         match match self {
-            LeagueCommand::AddGame(game) => league.get_match_idx(&game.player1.0, &game.player2.0),
+            LeagueCommand::AddGame(game) => league.get_match_idx(&game.players[0].name, &game.players[1].name),
             LeagueCommand::RemoveGames(game) => league.get_match_idx(&game.player1, &game.player2)
         } {
             None => None,

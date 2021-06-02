@@ -1,10 +1,8 @@
 use super::matches::Match;
 use super::player::Player;
 use super::game::Game;
-use super::game::Duration;
-use super::game::Race;
 
-use crate::com::command::{AddGameArgs, RemoveGameArgs, LeagueCommand};
+use crate::com::command::RemoveGameArgs;
 
 use serde::{Serialize, Deserialize};
 
@@ -132,39 +130,24 @@ impl League {
         None
     }
 
-    pub fn add_game(&mut self, args : &AddGameArgs) -> Result<(), String>{
+    pub fn add_game(&mut self, game : &Game) -> Result<(), String>{
+        if game.players.len() != 2 {
+            return Err(String::from("Wrong number of players in the game"));
+        }
 
-        let (idx, invert) = match self.get_match_idx(&args.player1.0, &args.player2.0) {
+        let (idx,_) = match self.get_match_idx(
+            &game.players[0].name,
+            &game.players[1].name
+        ) {
             Some(r) => r,
-            None => return Err(String::from("Match not found")) // actually should not be possible...
+            None => return Err(String::from("Match with the given players not found"))
         };
 
-        let r1 = match Race::char_to_race(args.player1.1) {
-            Some(r) => r,
-            None => return Err(String::from("Char is not a race code"))
-        };
-
-        let r2 = match Race::char_to_race(args.player2.1) {
-            Some(r) => r,
-            None => return Err(String::from("Char is not a race code"))
-        };
-
-        let win = args.first_player_win;
-        self.add_game_raw(
-            idx,
-            (win && !invert) || (!win && invert),
-            (r1, r2),
-            Duration{ min: args.duration_min, sec: args.duration_sec })?;
-        Ok(())
-    }
-
-    fn add_game_raw(&mut self, idx: usize, win: bool, races: (Race, Race), duration : Duration) -> Result<(), String> {
         let m = &mut self.matches[idx];
         if m.winner().is_some() {
             return Err(String::from("Match is already finished"));
         }
-        let g = Game { first_player_won: win, races, duration};
-        m.games.push(g);
+        m.games.push(game.clone());
         Ok(())
     }
 

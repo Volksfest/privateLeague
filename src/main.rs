@@ -2,8 +2,8 @@ mod league;
 mod com;
 
 use crate::league::league::League;
-use crate::league::game::SerGame;
-use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs, AddGameArgs};
+use crate::league::game::Game;
+use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs};
 use crate::com::generator::{create_single_match, create_table};
 
 use clap::Clap;
@@ -21,7 +21,6 @@ use actix_multipart::Multipart;
 
 use futures::{StreamExt, TryStreamExt};
 use std::io::Write;
-use serde::Serialize;
 use std::process::Command;
 
 struct Context {
@@ -50,7 +49,7 @@ async fn get_token(ctx : web::Data<Arc<Mutex<Context>>>) -> impl Responder {
 
 #[post("/update")]
 async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::command::Request>) -> impl Responder {
-    let mut g = match ctx.lock() {
+    let g = match ctx.lock() {
         Ok(g) => g,
         _ => {return HttpResponse::BadGateway().finish();}
     };
@@ -116,24 +115,25 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
             .output()).await.unwrap();
         let output = String::from_utf8(output.stdout).unwrap();
         let game_res = serde_json::from_str(output.as_str());
-        let game : SerGame = match game_res {
+        let game : Game = match game_res {
             Ok(game) => game,
             Err(e) => {println!("{:?}", e); return Ok(HttpResponse::BadRequest().into());}
         };
 
 
+        /*
         let args = AddGameArgs {
             first_player_win : game.players[0].win,
             player1: (game.players[0].name.clone(), game.players[0].race.race_to_char()),
             player2: (game.players[1].name.clone(), game.players[1].race.race_to_char()),
             duration_min : game.duration.min,
             duration_sec : game.duration.sec,
-        };
+        };*/
 
-        match g.league.add_game(&args) {
+        match g.league.add_game(&game) {
             Ok(_) => {
                 save(&g.path, &g.league);
-                let cmd = LeagueCommand::AddGame(args);
+                let cmd = LeagueCommand::AddGame(game);
                 g.stack.push(cmd);
             }
             Err(e) => {

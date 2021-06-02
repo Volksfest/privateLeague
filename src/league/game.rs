@@ -8,6 +8,7 @@ pub enum Race {
 }
 
 impl Race {
+    #[allow(dead_code)]
     pub fn char_to_race(r : char) -> Option<Race>{
         match r {
             'z' => Some(Race::Zerg),
@@ -51,15 +52,6 @@ pub struct Players {
     pub win: bool
 }
 
-
-#[derive(Serialize, Deserialize)]
-pub struct Game {
-    pub(super) first_player_won: bool,
-    pub(super) races: (Race, Race),
-    #[allow(dead_code)]
-    pub(super) duration: Duration,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlayedDate {
     pub year: usize,
@@ -71,21 +63,10 @@ pub struct PlayedDate {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SerGame {
+pub struct Game {
     pub duration: Duration,
     pub map_name: String,
     pub observers: Vec<String>,
     pub players: Vec<Players>,
     pub date: PlayedDate
-}
-
-impl SerGame {
-    pub fn first_player_won(&self) -> bool {
-        self.players[0].win
-    }
-
-    pub fn is_consistent(&self) -> bool {
-        self.players.len() == 2 &&
-            self.players[0].win != self.players[1].win
-    }
 }
