@@ -61,11 +61,22 @@ pub struct Game {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PlayedDate {
+    pub year: usize,
+    pub month: usize,
+    pub day: usize,
+    pub hour: usize,
+    pub minute: usize,
+    pub second: usize
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SerGame {
     pub duration: Duration,
     pub map_name: String,
     pub observers: Vec<String>,
-    pub players: Vec<Players>
+    pub players: Vec<Players>,
+    pub date: PlayedDate
 }
 
 impl SerGame {

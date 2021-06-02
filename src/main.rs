@@ -115,7 +115,11 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
             .arg(cloned_path)
             .output()).await.unwrap();
         let output = String::from_utf8(output.stdout).unwrap();
-        let game : SerGame = serde_json::from_str(output.as_str()).unwrap();
+        let game_res = serde_json::from_str(output.as_str());
+        let game : SerGame = match game_res {
+            Ok(game) => game,
+            Err(e) => {println!("{:?}", e); return Ok(HttpResponse::BadRequest().into());}
+        };
 
 
         let args = AddGameArgs {
