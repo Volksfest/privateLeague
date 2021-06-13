@@ -44,7 +44,8 @@ pub struct UpdateMatchArgs {
 pub struct UpdateArgs {
     pub matches : Vec<UpdateMatchArgs>,
     pub table_dom : String,
-    pub processed : bool
+    pub processed : bool,
+    pub token : usize
 }
 
 #[derive(Serialize, Deserialize, Debug)]

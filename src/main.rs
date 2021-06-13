@@ -61,7 +61,8 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
     let mut update_list = UpdateArgs{
         matches: Vec::new(),
         table_dom: create_table(&g.league).print(),
-        processed: false
+        processed: false,
+        token: g.stack.len()
     };
 
     let mut idx_list = Vec::new();
