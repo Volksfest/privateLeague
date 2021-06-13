@@ -23,6 +23,11 @@ use futures::{StreamExt, TryStreamExt};
 use std::io::Write;
 use std::process::Command;
 
+use lettre;
+use lettre_email;
+use lettre::Transport;
+use serde::Deserialize;
+
 struct Context {
     secret : String,
     path : String,
@@ -227,6 +232,8 @@ struct Opts{
     kick: Option<Vec<String>>,
     #[clap(long, default_value = "127.0.0.1:8080")]
     host:String,
+    #[clap(long)]
+    mail: Option<String>
 }
 
 fn save(file : &String, league : &League) {
@@ -237,6 +244,14 @@ fn save(file : &String, league : &League) {
     } else {
         println!("Could not serialize");
     }
+}
+
+#[derive(Deserialize)]
+struct MailConfig{
+    from : String,
+    to : String,
+    pw : String,
+    smtp : String
 }
 
 #[actix_web::main]
@@ -293,6 +308,30 @@ async fn main() -> std::io::Result<()> {
     };
 
     println!("{}", context.secret);
+
+    if opts.mail.is_some() {
+        let mail_opt: MailConfig = serde_json::from_str(&std::fs::read_to_string(opts.mail.unwrap()).unwrap()).unwrap();
+
+        let mut mailer = lettre::SmtpClient
+        ::new_simple(mail_opt.smtp.as_str()).unwrap()
+            .credentials(
+                lettre::smtp::authentication::Credentials::new(
+                    mail_opt.from.clone(),
+                    mail_opt.pw,
+                )
+            )
+            .transport();
+
+        let email = lettre_email::EmailBuilder::new()
+            .from(mail_opt.from)
+            .subject("[LIGA] Token")
+            .text(&context.secret)
+            .to(mail_opt.to)
+            .build()
+            .unwrap();
+
+        mailer.send(email.into()).unwrap();
+    }
 
     // Create league context
     let shared_context = Arc::new(Mutex::new(context));
