@@ -70,3 +70,23 @@ pub struct Game {
     pub players: Vec<Players>,
     pub date: PlayedDate
 }
+
+impl Game {
+    pub fn is_valid(&self) -> bool {
+        return self.players.len() == 2;
+    }
+}
+
+impl PartialEq for Game {
+    fn eq(&self, other: &Self) -> bool {
+           self.is_valid()
+        && self.date.year == other.date.year
+        && self.date.month == other.date.month
+        && self.date.day == other.date.day
+        && self.date.hour == other.date.hour
+        && self.date.minute == other.date.minute
+        && self.date.second == other.date.second
+        && self.players[0].name == other.players[0].name
+        && self.players[1].name == other.players[1].name
+    }
+}

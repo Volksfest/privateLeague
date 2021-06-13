@@ -14,6 +14,10 @@ impl Match {
         self.games.len()==0
     }
 
+    pub fn get_games(&self) -> &Vec<Game> {
+        &self.games
+    }
+
     pub fn winner(&self) -> Option<usize> {
         let mut a = 0;
         let mut b = 0;

@@ -16,7 +16,7 @@ use std::sync::Mutex;
 use std::sync::Arc;
 
 use actix_web::{get, post, web, App, HttpServer, Error, Responder, HttpResponse};
-use actix_files as fs;
+use actix_files;
 use actix_multipart::Multipart;
 
 use futures::{StreamExt, TryStreamExt};
@@ -92,60 +92,103 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
     }
 
     // iterate over multipart stream
+    // should actually be only the file
     while let Ok(Some(mut field)) = payload.try_next().await {
-        //let content_type = field.content_disposition().unwrap();
-        //let filename = content_type.get_filename().unwrap();
-        //let filepath = format!("./tmp/{}", sanitize_filename::sanitize(&filename));
+        // create random tmp file
         let filepath = format!("./tmp/{}", Uuid::new_v4().to_simple().to_string());
         let cloned_path = filepath.clone();
+        let cloned_path_2 = filepath.clone();
 
-        // File::create is blocking operation, use threadpool
+        // create file
         let mut f = web::block(|| std::fs::File::create(filepath))
             .await
-            .unwrap();
+            .unwrap(); // TODO handle unwrap
 
-        // Field in turn is stream of *Bytes* object
+        // write file
         while let Some(chunk) = field.next().await {
-            let data = chunk.unwrap();
-            // filesystem operations are blocking, we have to use threadpool
+            let data = chunk.unwrap(); // TODO handle unwrap
             f = web::block(move || f.write_all(&data).map(|_| f)).await?;
         }
 
-        let output =  web::block(|| Command::new("./parser.py")
-            .arg(cloned_path)
-            .output()).await.unwrap();
-        let output = String::from_utf8(output.stdout).unwrap();
+        // call replay parser and retrieve output
+        let output =  web::block(
+                || Command::new("./parser.py")
+                    .arg(cloned_path)
+                    .output()
+        )
+            .await
+            .unwrap(); // TODO handle unwrap
+
+        // seperate stdout which contains the JSON result of the replay (see the parser.py)
+        let output = String::from_utf8(output.stdout)
+            .unwrap(); // TODO handle unwrap
+
+        // Deserialize JSON
         let game_res = serde_json::from_str(output.as_str());
         let game : Game = match game_res {
             Ok(game) => game,
-            Err(e) => {println!("{:?}", e); return Ok(HttpResponse::BadRequest().into());}
+            Err(_) => {
+                return Ok(HttpResponse::BadRequest().into());
+            }
         };
 
+        // Check if game is valid
+        if !game.is_valid() {
+            return Ok(HttpResponse::BadRequest().into());
+        }
 
-        /*
-        let args = AddGameArgs {
-            first_player_win : game.players[0].win,
-            player1: (game.players[0].name.clone(), game.players[0].race.race_to_char()),
-            player2: (game.players[1].name.clone(), game.players[1].race.race_to_char()),
-            duration_min : game.duration.min,
-            duration_sec : game.duration.sec,
-        };*/
+        let m = &g.league.matches[
+            g.league.get_match_idx(&game.players[0].name, &game.players[1].name)
+                .unwrap().0 //TODO handle unwrao
+            ];
 
-        match g.league.add_game(&game) {
-            Ok(_) => {
-                save(&g.path, &g.league);
-                let cmd = LeagueCommand::AddGame(game);
-                g.stack.push(cmd);
-            }
-            Err(e) => {
-                return Ok(HttpResponse::Ok().json(Respond::Error(e)));
+        // Check if match still needs a game
+        if m.winner().is_some() {
+            return Ok(HttpResponse::BadRequest().into());
+        }
+
+        // Check if game already exists
+        for old_game in m.get_games() {
+            if *old_game == game {
+                return Ok(HttpResponse::BadRequest().into());
             }
         }
 
+        // create a useful file name for success
+        let new_filepath = format!("replays/{}_{}_{}.SC2Replay", game.players[0].name, game.players[1].name, m.get_games().len());
+
+        // push Game to the league
+        match g.league.add_game(&game) {
+            Ok(_) => {
+                // Save league
+                save(&g.path, &g.league);
+                let cmd = LeagueCommand::AddGame(game);
+                // add copy of game to the stack
+                // TODO stack should be updated in general
+                g.stack.push(cmd);
+            }
+            Err(_) => {
+                return Ok(HttpResponse::BadRequest().into());
+            }
+        }
+
+        // move file
+        web::block(move || std::fs::rename(cloned_path_2,new_filepath)).await?;
     }
     Ok(HttpResponse::Ok().into())
 }
 
+#[get("/replay/{player_1}/{player_2}/{idx}")]
+async fn replay(path: web::Path<(String,String,String)>) -> Result<actix_files::NamedFile, Error> {
+    let path = path.into_inner();
+
+    println!("replays/{}_{}_{}.SC2Replay", path.1, path.0, path.2);
+
+    match actix_files::NamedFile::open(format!("replays/{}_{}_{}.SC2Replay", path.1, path.0, path.2)) {
+        Ok(f) => Ok(f),
+        Err(_) => Ok(actix_files::NamedFile::open(format!("replays/{}_{}_{}.SC2Replay", path.0, path.1, path.2))?)
+    }
+}
 
 #[get("/remove/{secret}/{player_1}/{player_2}")]
 async fn remove(path: web::Path<(String,String,String)>, ctx: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
@@ -242,7 +285,6 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-
     let context = Context{
         secret:Uuid::new_v4().to_simple().to_string(),
         path,
@@ -262,8 +304,9 @@ async fn main() -> std::io::Result<()> {
             .service(get_token)
             .service(update)
             .service(upload)
+            .service(replay)
             .service(remove)
-            .service(fs::Files::new("/resource", "./asset"))
+            .service(actix_files::Files::new("/resource", "./asset"))
     )
         .bind(opts.host)?
         .run()
