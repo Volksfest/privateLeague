@@ -1,4 +1,5 @@
 use super::matches::Match;
+use super::matches::Winner;
 use super::player::Player;
 use super::game::Game;
 
@@ -144,7 +145,7 @@ impl League {
         };
 
         let m = &mut self.matches[idx];
-        if m.winner().is_some() {
+        if m.winner().is_finished() {
             return Err(String::from("Match is already finished"));
         }
         m.games.push(game.clone());
@@ -162,6 +163,7 @@ impl League {
     }
 
     pub fn get_score(& self) -> Vec<(String, usize, usize)> {
+        // TODO make a Score class
         let mut score:Vec<(String, usize,usize)> = Vec::new();
         for i in &self.players {
             score.push((i.name.clone(), 0, 0));
@@ -169,7 +171,8 @@ impl League {
 
         for m in &self.matches {
             match m.winner() {
-                Some(w) => {
+                Winner::FirstPlayer => {
+                    let w = m.players.0;
                     score[w].1 = score[w].1 + 1;
                     let l = match m.players.0 == w {
                         true => m.players.1,
@@ -177,7 +180,16 @@ impl League {
                     };
                     score[l].2 = score[l].2 + 1;
                 },
-                None => continue
+                Winner::SecondPlayer => {
+                    let w = m.players.1;
+                    score[w].1 = score[w].1 + 1;
+                    let l = match m.players.0 == w {
+                        true => m.players.1,
+                        false => m.players.0
+                    };
+                    score[l].2 = score[l].2 + 1;
+                },
+                Winner::None => continue
             };
         }
 

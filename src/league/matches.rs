@@ -7,6 +7,21 @@ pub struct Match {
     pub(super) games: Vec<Game>,
 }
 
+pub enum Winner {
+    FirstPlayer,
+    SecondPlayer,
+    None
+}
+
+impl Winner {
+    pub fn is_finished(&self) -> bool {
+        match self {
+            Winner::None => false,
+            _ => true
+        }
+    }
+}
+
 impl Match {
     pub fn empty(&self) -> bool {
         self.games.len()==0
@@ -16,7 +31,7 @@ impl Match {
         &self.games
     }
 
-    pub fn winner(&self) -> Option<usize> {
+    pub fn winner(&self) -> Winner {
         let mut a = 0;
         let mut b = 0;
         for i in 0..3 {
@@ -30,12 +45,12 @@ impl Match {
         }
 
         if a == 2 {
-            return Some(self.players.0);
+            return Winner::FirstPlayer;
         }
         if b == 2 {
-            return Some(self.players.1);
+            return Winner::SecondPlayer;
         }
-        None
+        Winner::None
     }
 
     pub fn get_first_player(&self) -> usize {

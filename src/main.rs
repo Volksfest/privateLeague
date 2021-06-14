@@ -2,6 +2,7 @@ mod league;
 mod com;
 
 use crate::league::league::League;
+use crate::league::matches::Winner;
 use crate::league::game::Game;
 use crate::com::command::{LeagueCommand, Respond, UpdateArgs, UpdateMatchArgs, RemoveGameArgs};
 use crate::com::generator::{create_single_match, create_table};
@@ -149,9 +150,10 @@ async fn upload(path: web::Path<String>, mut payload: Multipart, ctx: web::Data<
             ];
 
         // Check if match still needs a game
-        if m.winner().is_some() {
-            return Ok(HttpResponse::BadRequest().into());
-        }
+        match m.winner() {
+            Winner::None => return Ok(HttpResponse::BadRequest().into()),
+            _ => ()
+        };
 
         // Check if game already exists
         for old_game in m.get_games() {

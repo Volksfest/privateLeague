@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use chrono::prelude::*;
 use horrorshow::prelude::*;
+use crate::league::matches::Winner;
 
 use crate::league::league::League;
 
@@ -13,14 +14,24 @@ pub fn create_single_match( l: &League, idx: usize) -> impl Render + '_{
             id = format!("match_{}",idx),
             class = format!("match_box {}",
                 match m.winner() {
-                    Some(_) => "played",
-                    None => if m.empty() {"unplayed"} else {"ongoing"}})
+                    Winner::None => if m.empty() {"unplayed"} else {"ongoing"},
+                    _ => "played",})
         ) {
             div (class = "player_box") {
                 // TODO change normal_player to winner or loser
-                div (class = "name_box normal_player") : l.players[m.get_first_player()].get_name().clone();
+                div (class = match m.winner() {
+                    Winner::FirstPlayer => "name_box winner",
+                    Winner::SecondPlayer => "name_box loser",
+                    Winner::None => "name_box normal_player"
+                })
+                : l.players[m.get_first_player()].get_name().clone();
                 div (class = "space_box") : "vs";
-                div (class = "name_box normal_player") : l.players[m.get_second_player()].get_name().clone();
+                div (class = match m.winner() {
+                    Winner::FirstPlayer => "name_box loser",
+                    Winner::SecondPlayer => "name_box winner",
+                    Winner::None => "name_box normal_player"
+                })
+                : l.players[m.get_second_player()].get_name().clone();
             }
 
             div (class = "games_box") {
