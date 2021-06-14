@@ -27,6 +27,7 @@ use lettre;
 use lettre_email;
 use lettre::Transport;
 use serde::Deserialize;
+use horrorshow::Template;
 
 struct Context {
     secret : String,
@@ -39,7 +40,7 @@ struct Context {
 async fn index(data: web::Data<Arc<Mutex<Context>>>) -> impl Responder {
     let g = data.lock().unwrap();
     HttpResponse::Ok()
-        .body(com::generator::create_html(&g.league))
+        .body(com::generator::create_html(&g.league).into_string().unwrap())
 }
 
 #[get("/get_token")]
@@ -65,7 +66,7 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
 
     let mut update_list = UpdateArgs{
         matches: Vec::new(),
-        table_dom: create_table(&g.league).print(),
+        table_dom: create_table(&g.league).into_string().unwrap(),
         processed: false,
         token: g.stack.len()
     };
@@ -78,7 +79,7 @@ async fn update(ctx : web::Data<Arc<Mutex<Context>>>, payload : web::Json<com::c
             Some(idx) => if !idx_list.contains(&idx) {
                 update_list.matches.push(UpdateMatchArgs {
                     idx,
-                    dom: create_single_match(&g.league, idx).print(),
+                    dom: create_single_match(&g.league, idx).into_string().unwrap(),
                 });
                 idx_list.push(idx);
             }
